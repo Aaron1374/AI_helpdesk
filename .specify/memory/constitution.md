@@ -1,50 +1,48 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: Unversioned/Template → 1.0.0
+- Added sections: Architecture & Simplicity, Technology Stack, AI Engineering & Abstraction, Security & Authorization, Grounded AI Behavior, Explicit State & Escalation, Observability & Audit, Quality & Testing, Traceability Principle
+- Removed sections: N/A
+- Follow-up TODOs: None
+-->
+
+# AI L1 IT Helpdesk Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Architecture & Simplicity
+Use a modular monolith unless the requirements explicitly justify decomposition. Prefer explicit, understandable code over unnecessary abstraction. Do not introduce infrastructure merely because it is common in enterprise systems. Any architectural change from the blueprint must be explicitly justified.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Technology Stack
+FastAPI owns the application/API boundary. React + TypeScript + Vite is the frontend. PostgreSQL is the system of record. `pgvector` is used within PostgreSQL for semantic retrieval and duplicate/related-incident detection.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. AI Engineering & Abstraction
+LangGraph owns the explicit AI workflow/state machine. LangChain is used selectively for model integration, structured output, embeddings and integration boilerplate. Business rules must not be hidden inside LangChain abstractions.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Security & Authorization
+The LLM is never the security boundary. Authentication and authorization are enforced server-side. Object-level authorization is mandatory. Tool authorization is enforced independently of LLM output. No autonomous privileged production actions are permitted.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Grounded AI Behavior
+The AI must not invent system state, diagnostic results, fixes, policies or permissions. Diagnostic tools must be used whenever real/mock system state is required. Enterprise integrations remain mocked/synthetic unless explicitly added later.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Explicit State & Escalation
+Escalation policy must be deterministic and enforced outside the LLM. Human takeover must be represented explicitly through conversation ownership. Ticket state transitions must be enforced server-side.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### VII. Observability & Audit
+Important operations must carry a `trace_id`. Audit events must capture security-sensitive and important business actions.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Quality & Testing
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Tests are required for business logic, APIs, security boundaries and critical AI behavior. Every acceptance criterion must ultimately have implementation evidence and test evidence.
+
+## Traceability Principle
+
+**BRD requirement → specification → implementation → test → evidence.**
+
+Do not add product requirements that are not supported by the BRD. Optimize for correctness, security, maintainability, testability, observability, traceability to the BRD, clean AI engineering practices, and reasonable implementation simplicity. Do not optimize architecture or implementation decisions for a short-term deadline.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This Constitution establishes permanent engineering principles for this project and supersedes any short-term optimizations. Any architectural changes must be explicitly justified against this constitution and the engineering blueprint.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-09-07 | **Last Amended**: 2026-09-07

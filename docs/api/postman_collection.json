@@ -1,0 +1,86 @@
+{
+  "info": {
+    "name": "AI L1 IT Helpdesk API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Conversations",
+      "item": [
+        {
+          "name": "Create Conversation",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/conversations"
+          }
+        },
+        {
+          "name": "Add Message",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/conversations/{{conversation_id}}/messages",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"content\": \"My VPN is broken\"}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            }
+          }
+        },
+        {
+          "name": "Takeover Conversation",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/conversations/{{conversation_id}}/takeover"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Get Tickets",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/tickets"
+          }
+        },
+        {
+          "name": "Confirm Resolution",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/tickets/{{ticket_id}}/confirm-resolution"
+          }
+        },
+        {
+          "name": "Get Similar Tickets",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/tickets/{{ticket_id}}/similar"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Diagnostics",
+      "item": [
+        {
+          "name": "Execute Tool",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/diagnostics/execute",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"tool_name\": \"ping\", \"args\": {\"host\": \"10.0.0.1\"}}",
+              "options": {
+                "raw": { "language": "json" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

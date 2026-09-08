@@ -1,16 +1,6 @@
 from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
-import os
-
-try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-except ImportError:
-    ChatGoogleGenerativeAI = None
-
-def get_llm():
-    if not ChatGoogleGenerativeAI or not os.getenv("GEMINI_API_KEY"):
-        return None
-    return ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
+from src.core.llm import get_chat_model
 
 def intake_node(state: AgentState):
     return {"input": state.get("input", "")}

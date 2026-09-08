@@ -243,3 +243,133 @@ The likely failure path is:
 4. The LLM provider rejects it because it has no user/content messages.
 
 Also, the resolver currently ignores `evidence` entirely. It should include at least `HumanMessage(content=state["input"])` and ideally a formatted evidence block in its prompt.
+
+## Universal LLM Integration and Startup Fixes
+
+- Replaced legacy hardcoded `get_llm()` functions in `backend/src/workflow/nodes/intake.py`, `backend/src/workflow/nodes/triage.py`, and `backend/src/workflow/nodes/resolution.py` with the centralized `get_chat_model()` from `src.core.llm`.
+- Ensured all LangGraph agent nodes dynamically adapt to any configured model/provider in `.env` (Groq, OpenAI, Gemini, Ollama, xAI).
+- Fixed `SECRET_KEY` environment variable injection in `docker-compose.yml` for the backend service.
+- Added development fallback default for `SECRET_KEY` in `backend/src/auth/security.py` to prevent startup crashes when keys are omitted.
+- Added default values for `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` in `docker-compose.yml` to eliminate startup warnings.
+- Fixed typo in `backend/src/api/tickets.py` (`from src.core.dclear import get_db` -> `from src.core.db import get_db`).
+- Restarted backend container and verified clean Uvicorn startup (`Application startup complete`, HTTP 200 on `/`).
+
+## Engineer Dashboard Authentication and L1 Role Setup
+
+- Replaced the placeholder `DUMMY_ENGINEER_TOKEN` in `frontend/src/portals/EngineerDashboard.tsx` with authenticated API client requests using the session JWT.
+- Added typed API helper functions (`getTickets()`, `getSimilarTickets()`, `takeoverConversation()`, `confirmResolution()`) in `frontend/src/api/client.ts` and corresponding types in `frontend/src/api/types.ts`.
+- Enhanced `EngineerDashboard.tsx` with loading, empty, and role-permission error states.
+- Updated backend RBAC authorization in `backend/src/api/tickets.py` and `backend/src/api/conversations.py` to recognize all support tiers (`engineer`, `l1`, `l2`, `support_lead`, `admin`).
+- Configured automatic development bootstrapping for `engineer@example.com` (role: `l1`, password: `dev-password`) and `admin@example.com` (role: `admin`, password: `dev-password`) in `backend/src/api/auth.py`.
+- Added quick-login preset buttons for **L1 Engineer**, **Employee**, and **Admin** on the frontend sign-in screen in `frontend/src/App.tsx`, and wired role-aware initial view routing.
+- Verified authenticated `POST /auth/login` and `GET /tickets` requests: returned HTTP 200 OK.
+- Verified frontend production build (`npm run build`) and lint (`npm run lint`): both passed cleanly with zero errors.
+
+## Clarification Loop Fix and Automatic L1 Ticket Escalation
+
+- Refactored `clarify_node` in `backend/src/workflow/nodes/triage.py` to remove the LLM clarification loop. The node now only requests clarification on trivial/empty greetings (`"hi"`, `"help"`, length < 4) and immediately allows user problem descriptions to proceed to triage and resolution.
+- Updated `resolve_node` in `backend/src/workflow/nodes/resolution.py` to gracefully handle an empty vector DB / absence of RAG knowledge articles. It synthesizes helpful initial troubleshooting guidance, explicitly notifies the employee that a ticket has been created, and sets `escalate: True`.
+- Updated `escalate_node` in `backend/src/workflow/nodes/handoff.py` to preserve messages generated during the resolution step.
+- Updated `backend/src/api/conversations.py` to automatically instantiate a `Ticket` with status `ESCALATED`, create a `TicketHistory` record, and emit a traceable `AuditEvent` when a conversation escalates.
+- Verified live end-to-end flow: an employee volume issue query received troubleshooting guidance, flagged escalation, and created ticket `[Audio] I am having a volume issue on my laptop...` with status `ESCALATED`, which immediately populated the L1 Engineer Dashboard (`GET /tickets`).
+
+## Phase 1 Completion: Backend Message History, Support Messaging & Takeover State
+
+- Added `GET /conversations/{conversation_id}/messages` endpoint in `backend/src/api/conversations.py` to retrieve complete ordered message history (`id`, `sender_type`, `content`, `created_at`), with authorization for the conversation owner and support roles (`engineer`, `l1`, `l2`, `support_lead`, `admin`).
+- Updated `POST /conversations/{conversation_id}/messages` to support direct human messaging:
+  - If sent by a support engineer, messages are saved as `SenderType.SYSTEM` with the `[Engineer]` prefix and returned immediately without calling LangGraph/LLM.
+  - If sent by an employee after takeover (`ConversationOwner.HUMAN`), messages are persisted directly for the engineer without triggering AI generation.
+- Updated `POST /conversations/{conversation_id}/takeover` to automatically transition the linked `Ticket.status` from `ESCALATED` to `IN_PROGRESS`, recording an audit event and ticket history entry.
+- Added `POST /tickets/{ticket_id}/resolve` in `backend/src/api/tickets.py` to allow engineers to transition in-progress tickets to `RESOLVED`.
+- Created task roadmap document in `engineer_chat_takeover_plan.md` outlining the 6 phases from backend endpoints to UI live chat consoles.
+- Verified Phase 1 live via backend test script:
+  - Conversation creation $\rightarrow$ employee escalation $\rightarrow$ engineer transcript retrieval $\rightarrow$ takeover (`IN_PROGRESS`) $\rightarrow$ engineer message injection (`[Engineer] Hello...`) $\rightarrow$ ticket resolution (`RESOLVED`). All operations returned HTTP 200 with expected state transitions.
+
+## Phase 2 Completion: Frontend API Contracts and Client Integration
+
+- Added `ChatMessageRecord` typed interface in `frontend/src/api/types.ts` (`id`, `sender_type`, `content`, `created_at`).
+- Implemented `getConversationMessages(conversationId)` in `frontend/src/api/client.ts` to query `/conversations/{id}/messages`.
+- Implemented `resolveTicket(ticketId)` in `frontend/src/api/client.ts` to invoke `POST /tickets/{id}/resolve`.
+- Verified TypeScript compilation and production build (`npm run build`) in the frontend Docker container with zero errors.
+- Marked Phase 2 tasks complete in `engineer_chat_takeover_plan.md`.
+
+## Phase 3, 4 & 5 Completion: Live Chat Console, Two-Way Polling & Styling
+
+- Refactored `frontend/src/portals/EngineerDashboard.tsx` into a responsive 2-column console:
+  - **Left Queue Panel**: Real-time ticket list with ticket count, active highlight, title, and color-coded status badges (`ESCALATED`, `IN_PROGRESS`, `RESOLVED`).
+  - **Right Live Chat Console**: Active ticket header with ticket/conversation IDs, action buttons (**[Take Over Chat]**, **[Mark Resolved]**), similar incident cards, chronological message transcript, and a live reply input form with Enter-to-send support.
+- Configured 3-second live message polling in `EngineerDashboard.tsx` for the selected ticket to stream new employee messages in real-time.
+- Updated `frontend/src/portals/EmployeePortal.tsx` to automatically poll the conversation transcript every 3 seconds and render engineer replies with dedicated **Support Engineer** styling and badges.
+- Added full visual design system rules in `frontend/src/styles.css` for the split-screen layout, queue cards, chat console header/body/footer, support badges, and responsive viewports.
+- Verified frontend build (`npm run build`) and lint (`npm run lint`): passed with zero errors or warnings.
+- Marked Phases 3, 4, and 5 complete in `engineer_chat_takeover_plan.md`.
+
+## Engineer Dashboard Access Resolution & Persona Switching
+
+- Identified why the user saw `Access restricted: An engineer or support role is required to view the Engineer Dashboard`:
+  - The browser session was logged in as `employee@example.com` (role: `employee`).
+  - When switching tabs to "Engineer Dashboard", the backend RBAC on `/tickets` correctly prevented employee access with HTTP 403.
+- Resolved by enhancing `frontend/src/App.tsx` and `frontend/src/portals/EngineerDashboard.tsx`:
+  - In `App.tsx`: clicking "Engineer Dashboard" while authenticated as an employee now automatically switches to the engineer session (`engineer@example.com`), and a convenient inline session switcher (`Switch to L1` / `Switch to Employee`) is displayed in the navigation topbar.
+  - In `EngineerDashboard.tsx`: when an access error (403/401) is encountered, the dashboard displays a clear explanation with a 1-click **[⚡ Switch & Sign in as L1 Engineer]** button that immediately authenticates as `engineer@example.com` and loads the ticket queue and live chat console.
+- Verified TypeScript build (`docker compose exec frontend npm run build`): passed with 0 errors.
+
+## Employee Past Chats and Role-Gated Portal Navigation
+
+- **Removed Role-Switch Buttons**:
+  - Removed topbar persona switcher buttons (`Switch to L1` / `Switch to Employee`) and automatic account switching from `frontend/src/App.tsx`.
+  - Role-gated portal navigation tabs: `employee` role accounts only see the **Employee Portal**, while support accounts (`l1`, `l2`, `engineer`, `support_lead`, `admin`) can navigate between both portals.
+  - To switch between user accounts, users simply use the standard **Sign out** action and sign in with their desired demo or custom account.
+- **Added Employee Past Chat History**:
+  - Backend: Added `GET /conversations` endpoint in `backend/src/api/conversations.py` to list all conversations belonging to the authenticated user, complete with message snippet previews, ticket status (`RESOLVED`, `IN_PROGRESS`, `ESCALATED`), timestamps, and message counts.
+  - Frontend Client: Added `ConversationItem` type to `frontend/src/api/types.ts` and `getConversations()` helper in `frontend/src/api/client.ts`.
+  - Employee Portal: Retained the focused single-column active chat layout at the top and added a **Past Conversations** history card grid underneath:
+    - Dedicated **`+ Start New Chat`** / **`+ New Request`** actions.
+    - Grid of interactive past conversation cards showing title, message preview, status badge (`Resolved`, `In Progress`, `Escalated`, `AI Active`), message count, and timestamp.
+    - Clicking any past chat seamlessly loads its full transcript and status into the chat window above with smooth scrolling.
+- **Verification**:
+  - Live backend verification confirmed `GET /conversations` retrieves all 23 historical conversations for `employee@example.com` with full metadata and ticket associations.
+  - Frontend production build (`npm run build`) and ESLint (`npm run lint`) passed with 0 warnings/errors.
+
+## End Conversation Feature
+
+- **Backend Support (`POST /conversations/{id}/close`)**:
+  - Added closing endpoint in `backend/src/api/conversations.py`.
+  - Sets `Conversation.status = ConversationStatus.CLOSED` and transitions any active linked ticket to `CLOSED` / `RESOLVED`, logging ticket history and audit events.
+  - Inserts a closing system message into the chat transcript (`"This conversation has been ended."`).
+  - Blocks sending new messages to closed conversations (`HTTP 400`).
+- **Frontend UI & Integration**:
+  - Added `closeConversation()` helper in `frontend/src/api/client.ts`.
+  - Added an **`[End Conversation]`** action button in `EmployeePortal.tsx` header for active conversations.
+  - When a conversation is ended:
+    - Displays confirmation and marks the session as `Closed`.
+    - Disables further typing and shows an informative banner with a 1-click **`+ Start New Chat`** button.
+    - Updates status badges in both the active view and past conversation cards below.
+- **Verification**:
+  - Live Python endpoint test verified closing a conversation returns HTTP 200 with `status: CLOSED`.
+  - Frontend TypeScript build and ESLint passed with 0 errors.
+
+## Auto-Scroll Jump Fix (Containerized Scrolling)
+
+- **Root Cause Identified**:
+  - Polling hooks periodically updated message state every 4 seconds.
+  - An uncontrolled `messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })` was firing on every state change, causing the entire browser window/page to jerk and jump to the bottom of the chat window.
+  - `.chat-window` lacked its own `overflow-y: auto` boundary and max-height constraints.
+- **Solution Implemented**:
+  - Bound `.chat-window` to `max-height: 480px; overflow-y: auto;` in `frontend/src/styles.css`.
+  - Replaced all window `scrollIntoView()` calls in `EmployeePortal.tsx` and `EngineerDashboard.tsx` with containerized scroll targeting (`container.scrollTop = container.scrollHeight`).
+  - Added smart scroll tracking: internal auto-scrolling only engages on initial conversation load or when the user is actively at the bottom of the message feed, eliminating all unwanted page jumping.
+- **Verification**:
+  - Frontend build and lint passed with 0 errors.
+
+## Employee Dashboard New Chat & Closed Conversation Selection Fix
+
+- **Root Cause**:
+  - `loadConversations()` automatically selected `list[0]` (the most recent conversation) whenever `activeConversationId` was `null`.
+  - If the employee's last conversation was closed, loading the portal auto-selected that closed conversation, locking the employee in a read-only state.
+  - Clicking `+ Start New Chat` set `activeConversationId` to `null` temporarily, but background polling (every 8s) re-triggered `activeConversationId === null` and immediately snapped back to `list[0]`, trapping the employee in the closed conversation.
+- **Fix Implemented in `EmployeePortal.tsx`**:
+  - Updated state management to support an explicit `'new'` active session state in `sessionStorage`.
+  - `loadConversations()` now checks if an existing conversation is open (`status !== 'CLOSED' && ticket_status !== 'CLOSED'`). If all past conversations are closed, it defaults to New Chat mode (`activeConversationId = null`) with `sessionStorage` set to `'new'`.
+  - Clicking `+ Start New Chat` or `+ New Request` sets `sessionStorage` to `'new'`, preventing background sync polling from overriding the user's new request session.
+

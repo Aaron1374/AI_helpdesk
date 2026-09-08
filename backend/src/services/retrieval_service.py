@@ -1,14 +1,12 @@
-from src.models.knowledge import KnowledgeDocument
-from src.models.ticket import Ticket
+import os
+import logging
+from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
-from typing import List, Dict, Any
-import logging
 
-try:
-    from langchain_google_genai import GoogleGenerativeAIEmbeddings
-except ImportError:
-    GoogleGenerativeAIEmbeddings = None
+from src.models.knowledge import KnowledgeDocument
+from src.models.ticket import Ticket
+from src.core.llm import get_embedding_model
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +18,17 @@ class RetrievalService:
         user_department: str = None,
         limit: int = 3
     ) -> List[Dict[str, Any]]:
+        if not query_text or not query_text.strip():
+            return []
+
         # Graceful fallback if no embeddings provider
         embeddings_model = None
-        if GoogleGenerativeAIEmbeddings and os.getenv("GEMINI_API_KEY"):
-            try:
-                embeddings_model = GoogleGenerativeAIEmbeddings(
-                    model="gemini-embedding-001"
-                )
-            except Exception as e:
-                logger.warning(f"Could not initialize embeddings: {e}")
+        try:
+            embeddings_model = get_embedding_model()
+        except Exception as e:
+            logger.warning(f"Could not initialize embeddings: {e}")
                 
         if not embeddings_model:
-            logger.warning("No embeddings provider available. Returning empty retrieval.")
             return []
 
         try:

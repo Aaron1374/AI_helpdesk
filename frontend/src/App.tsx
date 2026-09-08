@@ -6,10 +6,24 @@ import { EmployeePortal } from './portals/EmployeePortal';
 import { EngineerDashboard } from './portals/EngineerDashboard';
 
 export function App() {
-  const [view, setView] = useState<'employee' | 'engineer'>('employee');
   const [user, setUser] = useState<AuthUser | null>(() => getSessionUser());
+  const [view, setView] = useState<'employee' | 'engineer'>(() => {
+    const sessionUser = getSessionUser();
+    return sessionUser && sessionUser.role !== 'employee' ? 'engineer' : 'employee';
+  });
 
-  if (!user) return <LoginScreen onLogin={setUser} />;
+  const handleLogin = (newUser: AuthUser) => {
+    setUser(newUser);
+    if (newUser.role !== 'employee') {
+      setView('engineer');
+    } else {
+      setView('employee');
+    }
+  };
+
+  if (!user) return <LoginScreen onLogin={handleLogin} />;
+
+  const isSupportRole = user.role !== 'employee';
 
   return (
     <main className="app-shell">
@@ -26,27 +40,39 @@ export function App() {
           >
             Employee Portal
           </button>
-          <button
-            className={`nav-button ${view === 'engineer' ? 'is-active' : ''}`}
-            onClick={() => setView('engineer')}
-            aria-pressed={view === 'engineer'}
-          >
-            Engineer Dashboard
-          </button>
+          {isSupportRole && (
+            <button
+              className={`nav-button ${view === 'engineer' ? 'is-active' : ''}`}
+              onClick={() => setView('engineer')}
+              aria-pressed={view === 'engineer'}
+            >
+              Engineer Dashboard
+            </button>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem', background: '#f1f5f9', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.8rem' }}>
+            <span style={{ color: '#334155', fontWeight: 600 }}>{user.email}</span>
+            <span style={{ color: '#64748b' }}>({user.role})</span>
+          </div>
+
           <button className="nav-button" onClick={() => { clearSession(); setUser(null); }}>
             Sign out
           </button>
         </div>
       </nav>
       <div className="page-frame">
-        {view === 'employee' ? <EmployeePortal /> : <EngineerDashboard />}
+        {view === 'employee' || !isSupportRole ? (
+          <EmployeePortal />
+        ) : (
+          <EngineerDashboard />
+        )}
       </div>
     </main>
   );
 }
 
 function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
-  const [email, setEmail] = useState('employee@example.com');
+  const [email, setEmail] = useState('engineer@example.com');
   const [password, setPassword] = useState('dev-password');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,7 +98,35 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
         <div className="brand-lockup login-brand"><span className="brand-mark">IT</span><span>Helpdesk</span></div>
         <p className="eyebrow">Secure access</p>
         <h1>Sign in to support</h1>
-        <p className="page-subtitle">Use your helpdesk account to start a conversation with the support agent.</p>
+        <p className="page-subtitle">Select a demo account or sign in with your credentials.</p>
+
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="nav-button"
+            style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+            onClick={() => { setEmail('engineer@example.com'); setPassword('dev-password'); }}
+          >
+            L1 Engineer
+          </button>
+          <button
+            type="button"
+            className="nav-button"
+            style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+            onClick={() => { setEmail('employee@example.com'); setPassword('dev-password'); }}
+          >
+            Employee
+          </button>
+          <button
+            type="button"
+            className="nav-button"
+            style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+            onClick={() => { setEmail('admin@example.com'); setPassword('dev-password'); }}
+          >
+            Admin
+          </button>
+        </div>
+
         <form className="login-form" onSubmit={handleSubmit}>
           <label htmlFor="email">Email</label>
           <input id="email" className="text-field" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />

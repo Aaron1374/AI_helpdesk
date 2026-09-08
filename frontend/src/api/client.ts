@@ -47,9 +47,49 @@ export function createConversation(): Promise<ConversationResponse> {
   return request<ConversationResponse>('/conversations', { method: 'POST' });
 }
 
+export function getConversations(): Promise<import('./types').ConversationItem[]> {
+  return request<import('./types').ConversationItem[]>('/conversations');
+}
+
 export function sendMessage(conversationId: string, content: string): Promise<MessageResponse> {
   return request<MessageResponse>(`/conversations/${conversationId}/messages`, {
     method: 'POST',
     body: JSON.stringify({ content }),
+  });
+}
+
+export function getTickets(): Promise<import('./types').TicketItem[]> {
+  return request<import('./types').TicketItem[]>('/tickets');
+}
+
+export function getSimilarTickets(ticketId: string): Promise<import('./types').SimilarIncident[]> {
+  return request<import('./types').SimilarIncident[]>(`/tickets/${ticketId}/similar`);
+}
+
+export function takeoverConversation(conversationId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/conversations/${conversationId}/takeover`, {
+    method: 'POST',
+  });
+}
+
+export function getConversationMessages(conversationId: string): Promise<import('./types').ChatMessageRecord[]> {
+  return request<import('./types').ChatMessageRecord[]>(`/conversations/${conversationId}/messages`);
+}
+
+export function resolveTicket(ticketId: string): Promise<{ status: string; ticket_status: string }> {
+  return request<{ status: string; ticket_status: string }>(`/tickets/${ticketId}/resolve`, {
+    method: 'POST',
+  });
+}
+
+export function closeConversation(conversationId: string): Promise<{ status: string; conversation_id: string }> {
+  return request<{ status: string; conversation_id: string }>(`/conversations/${conversationId}/close`, {
+    method: 'POST',
+  });
+}
+
+export function confirmResolution(ticketId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/tickets/${ticketId}/confirm-resolution`, {
+    method: 'POST',
   });
 }

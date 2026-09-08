@@ -1,6 +1,6 @@
 import pytest
 from fastapi import HTTPException
-from backend.src.tools.gateway import ToolGateway
+from src.tools.gateway import ToolGateway
 
 def test_tool_gateway_rejects_unauthorized():
     gateway = ToolGateway({"vpn_check"})

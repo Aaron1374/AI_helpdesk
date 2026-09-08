@@ -1,12 +1,12 @@
 from langgraph.graph import StateGraph, END
-from backend.src.workflow.state import AgentState
-from backend.src.workflow.nodes.intake import intake_node, injection_pre_check_node
-from backend.src.workflow.nodes.triage import clarify_node, classify_node
-from backend.src.workflow.nodes.resolution import diagnose_node, resolve_node, verify_node
-from backend.src.workflow.nodes.handoff import escalate_node, human_node
-from backend.src.workflow.escalation import EscalationPolicy
+from src.workflow.state import AgentState
+from src.workflow.nodes.intake import intake_node, injection_pre_check_node
+from src.workflow.nodes.triage import clarify_node, classify_node
+from src.workflow.nodes.resolution import diagnose_node, resolve_node, verify_node
+from src.workflow.nodes.handoff import escalate_node, human_node
+from src.workflow.escalation import EscalationPolicy
 
-from backend.src.workflow.nodes.retrieval import retrieve_node
+from src.workflow.nodes.retrieval import retrieve_node
 
 workflow = StateGraph(AgentState)
 

@@ -18,7 +18,7 @@ depends_on = None
 def upgrade():
     # UserRole Enum
     userrole = postgresql.ENUM('employee', 'l1', 'l2', 'support_lead', 'admin', name='userrole')
-    userrole.create(op.get_bind())
+    # userrole.create(op.get_bind())
 
     # Users table
     op.create_table(
@@ -33,11 +33,11 @@ def upgrade():
 
     # ConversationOwner Enum
     conversationowner = postgresql.ENUM('AI', 'HUMAN', name='conversationowner')
-    conversationowner.create(op.get_bind())
+    # conversationowner.create(op.get_bind())
 
     # ConversationStatus Enum
     conversationstatus = postgresql.ENUM('ACTIVE', 'CLOSED', name='conversationstatus')
-    conversationstatus.create(op.get_bind())
+    # conversationstatus.create(op.get_bind())
 
     # Conversations table
     op.create_table(
@@ -53,7 +53,7 @@ def upgrade():
 
     # SenderType Enum
     sendertype = postgresql.ENUM('USER', 'AI', 'SYSTEM', name='sendertype')
-    sendertype.create(op.get_bind())
+    # sendertype.create(op.get_bind())
 
     # Messages table
     op.create_table(

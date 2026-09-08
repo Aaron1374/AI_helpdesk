@@ -1,6 +1,6 @@
-from backend.src.workflow.state import AgentState
-from backend.src.services.retrieval_service import RetrievalService
-from backend.src.core.db import AsyncSessionLocal
+from src.workflow.state import AgentState
+from src.services.retrieval_service import RetrievalService
+from src.core.db import AsyncSessionLocal
 import asyncio
 
 def retrieve_node(state: AgentState):

@@ -1,5 +1,5 @@
 import pytest
-from backend.src.workflow.nodes.intake import injection_pre_check_node
+from src.workflow.nodes.intake import injection_pre_check_node
 
 def test_prompt_injection_defense():
     # Test safe input

@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
-from backend.src.auth.security import RoleChecker, get_current_user
-from backend.src.core.db import get_db
+from src.auth.security import RoleChecker, get_current_user
+from src.core.dclear import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from backend.src.models.ticket import Ticket, TicketStatus
-from backend.src.services.ticket_service import TicketService
+from src.models.ticket import Ticket, TicketStatus
+from src.services.ticket_service import TicketService
 import uuid
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
@@ -34,7 +34,7 @@ async def confirm_resolution(ticket_id: str, user: dict = Depends(get_current_us
     await TicketService.update_status(db, ticket, TicketStatus.CLOSED, changed_by=user.get("username"))
     return {"status": "success"}
 
-from backend.src.services.retrieval_service import RetrievalService
+from src.services.retrieval_service import RetrievalService
 
 @router.get("/{ticket_id}/similar")
 async def get_similar_tickets(ticket_id: str, user: dict = Depends(RoleChecker(["engineer", "admin"])), db: AsyncSession = Depends(get_db)):

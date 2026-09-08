@@ -4,9 +4,9 @@ services:
   db:
     image: ankane/pgvector:v0.5.1
     environment:
-      POSTGRES_USER: helpdesk_user
-      POSTGRES_PASSWORD: helpdesk_password
-      POSTGRES_DB: helpdesk_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -16,9 +16,11 @@ services:
     build:
       context: ./backend
     ports:
-      - "8000:8000"
+      - "8001:8000" #was 8000:8000
     environment:
-      - DATABASE_URL=postgresql://helpdesk_user:helpdesk_password@db:5432/helpdesk_db
+      DATABASE_URL: ${DATABASE_URL}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      SECRET_KEY: ${SECRET_KEY}
     depends_on:
       - db
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload

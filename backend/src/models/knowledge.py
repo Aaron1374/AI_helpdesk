@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from pgvector.sqlalchemy import Vector
-from backend.src.core.db import Base
+from src.core.db import Base
 
 class KnowledgeDocument(Base):
     __tablename__ = "knowledge_documents"

@@ -1,4 +1,4 @@
-from backend.src.workflow.state import AgentState
+from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage
 
 def escalate_node(state: AgentState):

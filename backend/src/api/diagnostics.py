@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from backend.src.auth.security import RoleChecker
+from src.auth.security import RoleChecker
 
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"], dependencies=[Depends(RoleChecker(["employee", "l1", "l2"]))])
 

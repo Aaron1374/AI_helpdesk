@@ -1,5 +1,5 @@
-from backend.src.models.knowledge import KnowledgeDocument
-from backend.src.models.ticket import Ticket
+from src.models.knowledge import KnowledgeDocument
+from src.models.ticket import Ticket
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from typing import List, Dict, Any
@@ -7,9 +7,9 @@ import os
 import logging
 
 try:
-    from langchain_openai import OpenAIEmbeddings
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
 except ImportError:
-    OpenAIEmbeddings = None
+    GoogleGenerativeAIEmbeddings = None
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +23,11 @@ class RetrievalService:
     ) -> List[Dict[str, Any]]:
         # Graceful fallback if no embeddings provider
         embeddings_model = None
-        if OpenAIEmbeddings and os.getenv("OPENAI_API_KEY"):
+        if GoogleGenerativeAIEmbeddings and os.getenv("GEMINI_API_KEY"):
             try:
-                embeddings_model = OpenAIEmbeddings()
+                embeddings_model = GoogleGenerativeAIEmbeddings(
+                    model="gemini-embedding-001"
+                )
             except Exception as e:
                 logger.warning(f"Could not initialize embeddings: {e}")
                 

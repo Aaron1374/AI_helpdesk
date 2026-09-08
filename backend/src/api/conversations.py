@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List
-from backend.src.auth.security import RoleChecker, get_current_user
-from backend.src.core.db import get_db
-from backend.src.models.chat import Conversation, Message, SenderType
+from src.auth.security import RoleChecker, get_current_user
+from src.core.db import get_db
+from src.models.chat import Conversation, Message, SenderType
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import uuid
-from backend.src.workflow.graph import app as graph_app
+from src.workflow.graph import app as graph_app
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 

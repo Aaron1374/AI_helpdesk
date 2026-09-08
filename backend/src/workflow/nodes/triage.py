@@ -1,16 +1,16 @@
-from backend.src.workflow.state import AgentState
+from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 import os
 
 try:
-    from langchain_openai import ChatOpenAI
+    from langchain_google_genai import ChatGoogleGenerativeAI
 except ImportError:
-    ChatOpenAI = None
+    ChatGoogleGenerativeAI = None
 
 def get_llm():
-    if not ChatOpenAI or not os.getenv("OPENAI_API_KEY"):
+    if not ChatGoogleGenerativeAI or not os.getenv("GEMINI_API_KEY"):
         return None
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    return ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
 
 def clarify_node(state: AgentState):
     text = state.get("input", "")

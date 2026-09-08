@@ -1,9 +1,9 @@
 from fastapi import FastAPI
-from backend.src.core.logging import TraceIdMiddleware
-from backend.src.api.health import router as health_router
-from backend.src.api.diagnostics import router as diagnostics_router
-from backend.src.api.conversations import router as conversations_router
-from backend.src.api.tickets import router as tickets_router
+from src.core.logging import TraceIdMiddleware
+from src.api.health import router as health_router
+from src.api.diagnostics import router as diagnostics_router
+from src.api.conversations import router as conversations_router
+from src.api.tickets import router as tickets_router
 
 app = FastAPI(title="AI L1 IT Helpdesk API")
 

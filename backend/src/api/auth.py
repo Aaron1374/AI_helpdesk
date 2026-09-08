@@ -29,15 +29,39 @@ async def login(
     dev_password = os.getenv("DEV_USER_PASSWORD", "dev-password")
     dev_role = os.getenv("DEV_USER_ROLE", "employee")
 
+    DEV_ACCOUNTS = {
+        dev_email: {
+            "password": dev_password,
+            "role": UserRole(dev_role),
+            "name": "Development Employee",
+        },
+        "engineer@example.com": {
+            "password": "dev-password",
+            "role": UserRole.l1,
+            "name": "L1 Support Engineer",
+        },
+        "l1@example.com": {
+            "password": "dev-password",
+            "role": UserRole.l1,
+            "name": "L1 Support Engineer",
+        },
+        "admin@example.com": {
+            "password": "dev-password",
+            "role": UserRole.admin,
+            "name": "System Admin",
+        },
+    }
+
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
-    if user is None and email == dev_email and form_data.password == dev_password:
+    if user is None and email in DEV_ACCOUNTS and form_data.password == DEV_ACCOUNTS[email]["password"]:
+        account_info = DEV_ACCOUNTS[email]
         user = User(
-            name=email,
+            name=account_info["name"],
             email=email,
-            hashed_password=get_password_hash(dev_password),
-            role=UserRole(dev_role),
+            hashed_password=get_password_hash(account_info["password"]),
+            role=account_info["role"],
         )
         db.add(user)
         await db.flush()
@@ -48,13 +72,14 @@ async def login(
         )
     except (ValueError, UnknownHashError):
         valid_password = False
+
     if (
         user is not None
-        and email == dev_email
-        and form_data.password == dev_password
+        and email in DEV_ACCOUNTS
+        and form_data.password == DEV_ACCOUNTS[email]["password"]
         and not valid_password
     ):
-        user.hashed_password = get_password_hash(dev_password)
+        user.hashed_password = get_password_hash(DEV_ACCOUNTS[email]["password"])
         valid_password = True
 
     if user is None or not valid_password:

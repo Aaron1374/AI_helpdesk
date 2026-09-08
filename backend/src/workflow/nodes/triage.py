@@ -1,36 +1,16 @@
 from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
-import os
-
-try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-except ImportError:
-    ChatGoogleGenerativeAI = None
-
-def get_llm():
-    if not ChatGoogleGenerativeAI or not os.getenv("GEMINI_API_KEY"):
-        return None
-    return ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
+from src.core.llm import get_chat_model
 
 def clarify_node(state: AgentState):
-    text = state.get("input", "")
-    llm = get_chat_model()
+    text = (state.get("input", "") or "").strip()
     
-    if llm:
-        try:
-            prompt = [
-                SystemMessage(content="If the user's issue is too short or vague, reply with a clarifying question. Otherwise, reply 'OK'."),
-                HumanMessage(content=text)
-            ]
-            res = llm.invoke(prompt)
-            if res.content.strip() != "OK":
-                return {"needs_clarification": True, "messages": [AIMessage(content=res.content)]}
-            return {"needs_clarification": False}
-        except Exception:
-            pass
-
-    if len(text.strip()) < 10:
-        return {"needs_clarification": True, "messages": [AIMessage(content="Could you please provide more details about your issue?")]}
+    # Only request clarification if the user only entered a brief greeting or empty string
+    if len(text) < 4 or text.lower() in {"hi", "hello", "hey", "help", "test", "ok"}:
+        return {
+            "needs_clarification": True,
+            "messages": [AIMessage(content="Hello! I am your AI IT Helpdesk Assistant. Please describe the IT issue or problem you are experiencing, and I will assist or route it to an engineer.")]
+        }
     return {"needs_clarification": False}
 
 def classify_node(state: AgentState):

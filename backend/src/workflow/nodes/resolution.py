@@ -3,19 +3,9 @@ from src.tools.gateway import ToolGateway
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 import json
-import os
-
-try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-except ImportError:
-    ChatGoogleGenerativeAI = None
+from src.core.llm import get_chat_model
 
 gateway = ToolGateway({"vpn_check", "device_check"})
-
-def get_llm():
-    if not ChatGoogleGenerativeAI or not os.getenv("GEMINI_API_KEY"):
-        return None
-    return ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
 
 # 1. Define tools using LangChain interface
 @tool
@@ -86,26 +76,53 @@ def diagnose_node(state: AgentState):
 
 def resolve_node(state: AgentState):
     evidence = state.get("evidence", [])
-    messages = state.get("messages", [])
+    messages = list(state.get("messages", []))
+    user_input = state.get("input", "")
     
-    if not evidence:
-        return {"messages": [AIMessage(content="I cannot resolve this issue without diagnostic evidence.")], "escalate": True}
-        
+    # Check if we have knowledge documents in evidence
+    kb_docs = []
+    for ev in evidence:
+        if isinstance(ev, dict) and "documents" in ev:
+            kb_docs.extend(ev["documents"])
+            
+    has_kb = len(kb_docs) > 0
     llm = get_chat_model()
+    
     if llm:
         try:
+            evidence_summary = json.dumps(evidence, default=str)
+            if has_kb:
+                system_prompt = (
+                    "You are an AI IT Helpdesk Assistant. "
+                    "Use the retrieved knowledge base evidence and diagnostic results to provide a clear, step-by-step resolution."
+                )
+                should_escalate = False
+            else:
+                system_prompt = (
+                    "You are an AI IT Helpdesk Assistant. "
+                    "Acknowledge the user's issue and provide initial basic troubleshooting advice if known. "
+                    "Explicitly inform the user that a support ticket has been created and escalated to an L1 Support Engineer who will review and assist shortly."
+                )
+                should_escalate = True
+
             prompt = [
-                SystemMessage(content="You are an IT helpdesk agent. Use the evidence provided to propose a resolution."),
-                HumanMessage(content=state.get("input", "") or "Please review the diagnostic evidence and propose a resolution.")
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=f"Issue: {user_input}\nEvidence: {evidence_summary}")
             ]
-            prompt.extend(messages)
-            
             response = llm.invoke(prompt)
-            return {"messages": [response], "escalate": False}
+            return {"messages": [response], "escalate": should_escalate, "status": "escalated" if should_escalate else "resolved"}
         except Exception as e:
-            return {"messages": [AIMessage(content=f"AI Error: {str(e)}")], "escalate": True}
+            return {
+                "messages": [AIMessage(content="I have recorded your issue and created an escalated support ticket for an L1 Support Engineer to assist you.")],
+                "escalate": True,
+                "status": "escalated"
+            }
     
-    return {"messages": [AIMessage(content=f"Based on evidence {evidence}, I have resolved your issue.")], "escalate": False}
+    return {
+        "messages": [AIMessage(content="I have recorded your issue and forwarded a ticket to our L1 Support Engineer team for assistance.")],
+        "escalate": True,
+        "status": "escalated"
+    }
 
 def verify_node(state: AgentState):
-    return {"status": "resolved"}
+    return {"status": state.get("status", "resolved")}

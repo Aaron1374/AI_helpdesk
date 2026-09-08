@@ -52,8 +52,28 @@ The application needs to know your API key and database settings.
 2. Open `.env` in your text editor and paste the following:
 
 ```env
-# Your OpenAI API Key
-OPENAI_API_KEY=sk-your-actual-api-key-goes-here
+# Select the model provider without changing Python code:
+# openai, google/gemini, xai/grok, openai_compatible, or ollama
+LLM_PROVIDER=openai
+LLM_MODEL=gpt-4o-mini
+LLM_TEMPERATURE=0
+
+# OpenAI
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_BASE_URL=
+OPENAI_ORG_ID=
+
+# Google Gemini (use when LLM_PROVIDER=google)
+GOOGLE_API_KEY=
+
+# xAI Grok (use when LLM_PROVIDER=xai)
+XAI_API_KEY=
+XAI_BASE_URL=https://api.x.ai/v1
+
+# Embeddings. Gemini defaults to gemini-embedding-001;
+# OpenAI-compatible providers default to text-embedding-3-small.
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
 
 # Database Configuration (Docker Compose handles this automatically)
 DATABASE_URL=postgresql://helpdesk_user:helpdesk_password@db:5432/helpdesk_db
@@ -62,6 +82,30 @@ DATABASE_URL=postgresql://helpdesk_user:helpdesk_password@db:5432/helpdesk_db
 SECRET_KEY=supersecretkey
 ```
 Save and close the file.
+
+To switch providers, edit only `.env`, then restart the backend:
+
+```env
+LLM_PROVIDER=google
+LLM_MODEL=gemini-2.5-flash
+GOOGLE_API_KEY=your-google-key
+EMBEDDING_PROVIDER=google
+EMBEDDING_MODEL=gemini-embedding-001
+```
+
+For Grok:
+
+```env
+LLM_PROVIDER=xai
+LLM_MODEL=grok-3-mini
+XAI_API_KEY=your-xai-key
+```
+
+Apply changes with:
+
+```bash
+docker compose up --build -d backend
+```
 
 ---
 

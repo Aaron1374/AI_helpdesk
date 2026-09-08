@@ -17,7 +17,7 @@ def intake_node(state: AgentState):
 
 def injection_pre_check_node(state: AgentState):
     text = state.get("input", "")
-    llm = get_llm()
+    llm = get_chat_model()
     
     if llm:
         try:

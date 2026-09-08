@@ -36,7 +36,7 @@ def diagnose_node(state: AgentState):
     user_context = state.get("user_context", {})
     messages = state.get("messages", [])
     
-    llm = get_llm()
+    llm = get_chat_model()
     if llm:
         llm_with_tools = llm.bind_tools(tools)
         
@@ -91,11 +91,12 @@ def resolve_node(state: AgentState):
     if not evidence:
         return {"messages": [AIMessage(content="I cannot resolve this issue without diagnostic evidence.")], "escalate": True}
         
-    llm = get_llm()
+    llm = get_chat_model()
     if llm:
         try:
             prompt = [
-                SystemMessage(content="You are an IT helpdesk agent. Use the evidence provided to propose a resolution.")
+                SystemMessage(content="You are an IT helpdesk agent. Use the evidence provided to propose a resolution."),
+                HumanMessage(content=state.get("input", "") or "Please review the diagnostic evidence and propose a resolution.")
             ]
             prompt.extend(messages)
             

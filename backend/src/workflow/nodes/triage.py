@@ -14,7 +14,7 @@ def get_llm():
 
 def clarify_node(state: AgentState):
     text = state.get("input", "")
-    llm = get_llm()
+    llm = get_chat_model()
     
     if llm:
         try:
@@ -35,7 +35,7 @@ def clarify_node(state: AgentState):
 
 def classify_node(state: AgentState):
     text = state.get("input", "")
-    llm = get_llm()
+    llm = get_chat_model()
     
     if llm:
         try:

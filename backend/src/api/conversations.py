@@ -3,7 +3,9 @@ from pydantic import BaseModel
 from typing import List
 from src.auth.security import RoleChecker, get_current_user
 from src.core.db import get_db
-from src.models.chat import Conversation, Message, SenderType
+from src.core.llm import normalize_content
+from src.models.chat import Conversation, ConversationOwner, Message, SenderType
+from src.models.user import User, UserRole
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import uuid
@@ -16,9 +18,19 @@ class MessageCreate(BaseModel):
 
 @router.post("")
 async def create_conversation(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    # Create conversation mapped to user
-    user_id = uuid.uuid4() 
-    new_conv = Conversation(user_id=user_id)
+    result = await db.execute(select(User).where(User.email == user["username"]))
+    account = result.scalar_one_or_none()
+    if account is None:
+        account = User(
+            name=user["username"],
+            email=user["username"],
+            hashed_password="development-user",
+            role=UserRole(user.get("role", "employee")),
+        )
+        db.add(account)
+        await db.flush()
+
+    new_conv = Conversation(user_id=account.id)
     db.add(new_conv)
     await db.commit()
     await db.refresh(new_conv)
@@ -37,7 +49,7 @@ async def takeover_conversation(conversation_id: str, user: dict = Depends(RoleC
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
         
-    conversation.status = "human_takeover"
+    conversation.owner_type = ConversationOwner.HUMAN
     await db.commit()
     return {"status": "human_takeover"}
 
@@ -59,23 +71,27 @@ async def add_message(conversation_id: str, message: MessageCreate, user: dict =
     await db.commit()
     
     # If a human took over, bypass AI completely
-    if conversation.status == "human_takeover" and user.get("role") == "employee":
+    if conversation.owner_type == ConversationOwner.HUMAN and user.get("role") == "employee":
         # We don't invoke LangGraph for the employee anymore, we just wait for engineer to reply
         return {"messages": [], "status": "human_takeover"}
 
     # Invoke LangGraph
-    initial_state = {"input": message.content, "messages": [], "evidence": [], "tool_history": [], "user_context": user, "status": conversation.status}
+    workflow_status = "human_takeover" if conversation.owner_type == ConversationOwner.HUMAN else conversation.status.value
+    initial_state = {"input": message.content, "messages": [], "evidence": [], "tool_history": [], "user_context": user, "status": workflow_status}
     final_state = await graph_app.ainvoke(initial_state)
 
     responses = []
     for msg in final_state.get("messages", []):
         if hasattr(msg, "content") and msg.content:
-            ai_msg = Message(conversation_id=conv_uuid, sender_type=SenderType.AI, content=msg.content)
+            content = normalize_content(msg.content)
+            ai_msg = Message(conversation_id=conv_uuid, sender_type=SenderType.AI, content=content)
             db.add(ai_msg)
-            responses.append({"sender": "AI", "content": msg.content})
+            responses.append({"sender": "AI", "content": content})
     
-    if final_state.get("status") == "human_takeover" or final_state.get("status") == "escalated":
-        conversation.status = "human_takeover"
+    if final_state.get("status") in {"human_takeover", "escalated"}:
+        conversation.owner_type = ConversationOwner.HUMAN
+        db.add(conversation)
+        await db.flush()
         
     await db.commit()
     return {"messages": responses, "state": final_state}

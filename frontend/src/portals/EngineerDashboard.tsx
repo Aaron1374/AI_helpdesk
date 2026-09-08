@@ -52,14 +52,24 @@ export const EngineerDashboard: React.FC = () => {
 
   return (
     <div className="engineer-dashboard">
-      <h1>Engineer Dashboard</h1>
+      <header className="page-heading dashboard-heading">
+        <p className="eyebrow">Operations view</p>
+        <h1>Engineer dashboard</h1>
+        <p className="page-subtitle">Review escalated incidents, related history, and ownership changes.</p>
+      </header>
       <div className="ticket-list">
-        {tickets.map(ticket => (
+        {tickets.length === 0 ? <div className="empty-state panel-empty">
+          <strong>No tickets to review</strong>
+          <span>Escalated tickets will appear here when they need an engineer.</span>
+        </div> : tickets.map(ticket => (
           <div key={ticket.id} className="ticket-item">
-            <span>{ticket.title} ({ticket.status})</span>
+            <div className="ticket-summary">
+              <strong>{ticket.title}</strong>
+              <span className="status-badge">{ticket.status}</span>
+            </div>
             
             <div className="similar-incidents">
-              <h4>Similar Incidents:</h4>
+              <h4>Similar incidents</h4>
               {similarTickets[ticket.id] && similarTickets[ticket.id].length > 0 ? (
                 <ul>
                   {similarTickets[ticket.id].map((sim, idx) => (

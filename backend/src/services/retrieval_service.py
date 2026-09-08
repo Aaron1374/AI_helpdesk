@@ -3,7 +3,6 @@ from src.models.ticket import Ticket
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from typing import List, Dict, Any
-import os
 import logging
 
 try:

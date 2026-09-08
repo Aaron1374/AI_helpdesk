@@ -4,7 +4,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from typing import List, Dict, Any
 import logging
-from src.core.llm import get_embedding_model
+
+try:
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+except ImportError:
+    GoogleGenerativeAIEmbeddings = None
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +22,13 @@ class RetrievalService:
     ) -> List[Dict[str, Any]]:
         # Graceful fallback if no embeddings provider
         embeddings_model = None
-        try:
-            embeddings_model = get_embedding_model()
-        except Exception as e:
-            logger.warning(f"Could not initialize embeddings: {e}")
+        if GoogleGenerativeAIEmbeddings and os.getenv("GEMINI_API_KEY"):
+            try:
+                embeddings_model = GoogleGenerativeAIEmbeddings(
+                    model="gemini-embedding-001"
+                )
+            except Exception as e:
+                logger.warning(f"Could not initialize embeddings: {e}")
                 
         if not embeddings_model:
             logger.warning("No embeddings provider available. Returning empty retrieval.")

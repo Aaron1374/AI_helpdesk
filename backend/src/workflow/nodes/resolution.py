@@ -3,9 +3,19 @@ from src.tools.gateway import ToolGateway
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 import json
-from src.core.llm import get_chat_model
+import os
+
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+except ImportError:
+    ChatGoogleGenerativeAI = None
 
 gateway = ToolGateway({"vpn_check", "device_check"})
+
+def get_llm():
+    if not ChatGoogleGenerativeAI or not os.getenv("GEMINI_API_KEY"):
+        return None
+    return ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0)
 
 # 1. Define tools using LangChain interface
 @tool

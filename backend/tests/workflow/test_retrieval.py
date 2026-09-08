@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from backend.src.services.retrieval_service import RetrievalService
-from backend.src.workflow.nodes.retrieval import retrieve_node
+from src.workflow.nodes.retrieval import retrieve_node
 
 @pytest.mark.asyncio
 async def test_retrieval_respects_rbac():

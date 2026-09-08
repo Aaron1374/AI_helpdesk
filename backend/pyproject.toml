@@ -8,6 +8,7 @@ authors = ["Development Team"]
 python = "^3.11"
 fastapi = "^0.111.0"
 uvicorn = "^0.30.0"
+syncpg = "^0.29.0"
 sqlalchemy = "^2.0.30"
 alembic = "^1.13.1"
 psycopg2-binary = "^2.9.9"

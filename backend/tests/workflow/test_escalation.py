@@ -1,5 +1,5 @@
 import pytest
-from backend.src.workflow.escalation import EscalationPolicy
+from src.workflow.escalation import EscalationPolicy
 
 def test_deterministic_escalation():
     # Test that certain categories or flags immediately return escalate=True

@@ -1,5 +1,5 @@
 import pytest
-from backend.src.workflow.nodes.resolution import resolve_node
+from src.workflow.nodes.resolution import resolve_node
 
 def test_ai_does_not_invent_system_state():
     # Test without evidence

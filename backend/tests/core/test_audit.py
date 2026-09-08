@@ -1,7 +1,7 @@
 import pytest
-from backend.src.services.ticket_service import TicketService
-from backend.src.models.ticket import Ticket, TicketStatus
-from backend.src.core.logging import trace_id_ctx_var
+from src.services.ticket_service import TicketService
+from src.models.ticket import Ticket, TicketStatus
+from src.core.logging import trace_id_ctx_var
 from unittest.mock import AsyncMock
 
 @pytest.mark.asyncio

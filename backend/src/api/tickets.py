@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from src.auth.security import RoleChecker, get_current_user
-from src.core.db import get_db
+from src.core.dclear import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.models.ticket import Ticket, TicketStatus

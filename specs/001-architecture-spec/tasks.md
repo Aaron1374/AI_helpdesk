@@ -160,3 +160,71 @@ Task: "Build Engineer Dashboard UI for viewing escalated tickets in frontend/src
 3. Complete Phase 4 (US2) to handle safety boundaries and escalation.
 4. **STOP and VALIDATE**: Core architecture is functional, secure, and meets MVP definition.
 5. Proceed to Phase 5 (US3) for RAG enhancements.
+
+---
+
+## Phase 7: Current Remediation and Frontend Completion
+
+**Purpose**: Resolve the issues found while running the Docker stack and make the existing frontend buildable, usable, and testable without weakening the backend security boundaries.
+
+**MVP boundary**: T048-T055. This produces a buildable frontend with a usable employee flow, real authentication integration, and a dashboard with explicit request states. T056-T060 complete quality, local development, and documentation follow-through.
+
+### Build and shared frontend foundation
+
+- [ ] T048 Create `frontend/tsconfig.json` with strict React/Vite compiler settings and include `src/**/*.ts`, `src/**/*.tsx`, and `vite.config.ts`; verify `npm run build` completes.
+- [ ] T049 [P] Align the TypeScript and `@typescript-eslint` versions in `frontend/package.json` and `frontend/package-lock.json` so `npm run lint` runs without an unsupported-version warning.
+- [ ] T050 [P] Create the shared visual system in `frontend/src/styles.css` and import it from `frontend/src/main.tsx`, covering typography, spacing, colors, responsive layout, focus states, buttons, forms, chat messages, dashboard rows, loading states, and error states.
+- [ ] T051 [P] Create a typed frontend API client in `frontend/src/api/client.ts` for base URL selection, JSON requests, authentication headers, non-2xx errors, and shared response types used by both portals.
+
+### User Story 1: Employee conversation completion
+
+- [ ] T052 [US1] Replace the placeholder conversation UUID in `frontend/src/portals/EmployeePortal.tsx` with a real conversation lifecycle: create or resume a conversation, store its ID, and post messages to that ID.
+- [ ] T053 [US1] Add sending, disabled, retry, request error, empty conversation, and server-response states to `frontend/src/portals/EmployeePortal.tsx` using the shared API client from `frontend/src/api/client.ts`.
+- [ ] T054 [US1] Add a frontend integration test in `frontend/tests/employee-portal.test.tsx` covering conversation creation, message submission, assistant response rendering, and failed-request feedback.
+
+### User Story 2: Engineer authentication and takeover workflow
+
+- [ ] T055 [US2] Add the frontend authentication/session flow in `frontend/src/auth/` and connect it to the backend's real login and RBAC contract; remove `DUMMY_ENGINEER_TOKEN` from `frontend/src/portals/EngineerDashboard.tsx`.
+- [ ] T056 [US2] Refactor `frontend/src/portals/EngineerDashboard.tsx` to use the typed API client and authenticated session, with loading, unauthorized, request-error, empty-ticket, and similar-incident states.
+- [ ] T057 [US2] Add explicit takeover success and failure handling in `frontend/src/portals/EngineerDashboard.tsx`, refresh the ticket state after takeover, and prevent duplicate takeover submissions while a request is pending.
+- [ ] T058 [US2] Add a frontend integration test in `frontend/tests/engineer-dashboard.test.tsx` covering authenticated ticket loading, unauthorized access, takeover success, and takeover failure.
+
+### User Story 3: Retrieval and duplicate display
+
+- [ ] T059 [US3] Define typed ticket and similar-incident response contracts in `frontend/src/api/types.ts` and render retrieval results with safe fallback handling in `frontend/src/portals/EngineerDashboard.tsx`.
+- [ ] T060 [US3] Add a frontend test in `frontend/tests/retrieval-results.test.tsx` verifying similar incidents render only from the authenticated API response and display a clear empty state when none are returned.
+
+### Runtime, tests, and documentation
+
+- [ ] T061 [P] Add a host-development API base URL strategy in `frontend/vite.config.ts` and `frontend/.env.example` so the proxy works both in Docker (`backend:8000`) and when Vite runs directly on Windows (`localhost:8000`).
+- [ ] T062 [P] Remove the obsolete `version` field from `docker-compose.yml` and document required runtime variables, including the optional OpenAI key, in `.env.example` and `setup.md`.
+- [ ] T063 Add a Playwright smoke test in `frontend/e2e/workflow.spec.ts` that opens the employee portal, switches to the engineer dashboard, and verifies the primary loading/error states without relying on hardcoded production credentials.
+- [ ] T064 Run backend tests, frontend lint, frontend build, and Docker endpoint checks; record exact results and any remaining blockers in `Ved_log.md`.
+
+## Phase 7 Dependencies and Execution Order
+
+- T048 blocks T054, T058, T060, and T063 because frontend tests and production builds require a valid TypeScript project.
+- T050 and T051 can proceed in parallel after T048.
+- T052-T054 depend on T051 and complete the employee MVP slice.
+- T055 must precede T056-T058 because the dashboard cannot safely use real protected endpoints without a session contract.
+- T059-T060 depend on T056 and complete the retrieval presentation slice.
+- T061-T062 can proceed in parallel with story work after the shared API client shape is agreed.
+- T063 depends on the employee and engineer MVP slices; T064 is the final validation task.
+
+### Parallel execution opportunities
+
+- Track A: T048, then T049 and T050 in parallel.
+- Track B: T051 can proceed in parallel with T050 once the API response shapes are confirmed.
+- Track C: T052-T054 for the employee portal.
+- Track D: T055-T058 for authentication and engineer takeover.
+- Track E: T061-T062 for Docker/local development cleanup.
+
+### Phase 7 completion criteria
+
+- `npm run build` succeeds.
+- `npm run lint` succeeds without the TypeScript compatibility warning.
+- Employee messages use a real conversation ID and show request failures in the UI.
+- Engineer requests use real authenticated credentials and show unauthorized/error/empty states.
+- Docker and host-local frontend development both have documented API routing.
+- Frontend tests cover employee messaging, engineer takeover, and retrieval rendering.
+- `Ved_log.md` records the final validation results.

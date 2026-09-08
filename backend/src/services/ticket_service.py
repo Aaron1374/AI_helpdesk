@@ -1,7 +1,7 @@
-from backend.src.models.ticket import Ticket, TicketStatus, TicketHistory, AuditEvent
+from src.models.ticket import Ticket, TicketStatus, TicketHistory, AuditEvent
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
-from backend.src.core.logging import trace_id_ctx_var
+from src.core.logging import trace_id_ctx_var
 
 class TicketService:
     VALID_TRANSITIONS = {

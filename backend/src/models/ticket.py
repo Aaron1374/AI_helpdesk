@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Enum, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from backend.src.core.db import Base
+from src.core.db import Base
 import enum
 
 from pgvector.sqlalchemy import Vector

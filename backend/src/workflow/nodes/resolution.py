@@ -1,21 +1,11 @@
-from backend.src.workflow.state import AgentState
-from backend.src.tools.gateway import ToolGateway
+from src.workflow.state import AgentState
+from src.tools.gateway import ToolGateway
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 import json
-import os
-
-try:
-    from langchain_openai import ChatOpenAI
-except ImportError:
-    ChatOpenAI = None
+from src.core.llm import get_chat_model
 
 gateway = ToolGateway({"vpn_check", "device_check"})
-
-def get_llm():
-    if not ChatOpenAI or not os.getenv("OPENAI_API_KEY"):
-        return None
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
 # 1. Define tools using LangChain interface
 @tool
@@ -36,7 +26,7 @@ def diagnose_node(state: AgentState):
     user_context = state.get("user_context", {})
     messages = state.get("messages", [])
     
-    llm = get_llm()
+    llm = get_chat_model()
     if llm:
         llm_with_tools = llm.bind_tools(tools)
         
@@ -91,11 +81,12 @@ def resolve_node(state: AgentState):
     if not evidence:
         return {"messages": [AIMessage(content="I cannot resolve this issue without diagnostic evidence.")], "escalate": True}
         
-    llm = get_llm()
+    llm = get_chat_model()
     if llm:
         try:
             prompt = [
-                SystemMessage(content="You are an IT helpdesk agent. Use the evidence provided to propose a resolution.")
+                SystemMessage(content="You are an IT helpdesk agent. Use the evidence provided to propose a resolution."),
+                HumanMessage(content=state.get("input", "") or "Please review the diagnostic evidence and propose a resolution.")
             ]
             prompt.extend(messages)
             

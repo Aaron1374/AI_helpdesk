@@ -1,23 +1,13 @@
-from backend.src.workflow.state import AgentState
+from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
-import os
-
-try:
-    from langchain_openai import ChatOpenAI
-except ImportError:
-    ChatOpenAI = None
-
-def get_llm():
-    if not ChatOpenAI or not os.getenv("OPENAI_API_KEY"):
-        return None
-    return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+from src.core.llm import get_chat_model
 
 def intake_node(state: AgentState):
     return {"input": state.get("input", "")}
 
 def injection_pre_check_node(state: AgentState):
     text = state.get("input", "")
-    llm = get_llm()
+    llm = get_chat_model()
     
     if llm:
         try:

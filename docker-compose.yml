@@ -18,7 +18,21 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://helpdesk_user:helpdesk_password@db:5432/helpdesk_db
+      - DATABASE_URL=postgresql+asyncpg://helpdesk_user:helpdesk_password@db:5432/helpdesk_db
+      - DEV_USER_EMAIL=${DEV_USER_EMAIL:-employee@example.com}
+      - DEV_USER_PASSWORD=${DEV_USER_PASSWORD:-dev-password}
+      - DEV_USER_ROLE=${DEV_USER_ROLE:-employee}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-}
+      - OPENAI_ORG_ID=${OPENAI_ORG_ID:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - XAI_BASE_URL=${XAI_BASE_URL:-https://api.x.ai/v1}
+      - LLM_PROVIDER=${LLM_PROVIDER:-openai}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-openai}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-small}
     depends_on:
       - db
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload

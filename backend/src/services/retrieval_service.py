@@ -1,15 +1,10 @@
-from backend.src.models.knowledge import KnowledgeDocument
-from backend.src.models.ticket import Ticket
+from src.models.knowledge import KnowledgeDocument
+from src.models.ticket import Ticket
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 from typing import List, Dict, Any
-import os
 import logging
-
-try:
-    from langchain_openai import OpenAIEmbeddings
-except ImportError:
-    OpenAIEmbeddings = None
+from src.core.llm import get_embedding_model
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +18,10 @@ class RetrievalService:
     ) -> List[Dict[str, Any]]:
         # Graceful fallback if no embeddings provider
         embeddings_model = None
-        if OpenAIEmbeddings and os.getenv("OPENAI_API_KEY"):
-            try:
-                embeddings_model = OpenAIEmbeddings()
-            except Exception as e:
-                logger.warning(f"Could not initialize embeddings: {e}")
+        try:
+            embeddings_model = get_embedding_model()
+        except Exception as e:
+            logger.warning(f"Could not initialize embeddings: {e}")
                 
         if not embeddings_model:
             logger.warning("No embeddings provider available. Returning empty retrieval.")

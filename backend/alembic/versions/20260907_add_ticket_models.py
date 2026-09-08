@@ -18,8 +18,8 @@ depends_on = None
 
 def upgrade():
     # Create Enum Type
-    ticketstatus = postgresql.ENUM('NEW', 'TRIAGED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'ESCALATED', name='ticketstatus')
-    ticketstatus.create(op.get_bind())
+    ticketstatus = postgresql.ENUM('NEW', 'TRIAGED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'ESCALATED', name='ticketstatus', create_type=False)
+    ticketstatus.create(op.get_bind(), checkfirst=True)
 
     # Create tickets table
     op.create_table(

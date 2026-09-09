@@ -238,6 +238,12 @@ export const EngineerDashboard: React.FC = () => {
                   key={ticket.id}
                   className={`queue-card ${selectedTicketId === ticket.id ? 'is-active' : ''}`}
                   onClick={() => setSelectedTicketId(ticket.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedTicketId(ticket.id);
+                    }
+                  }}
                   role="button"
                   tabIndex={0}
                 >
@@ -293,7 +299,7 @@ export const EngineerDashboard: React.FC = () => {
                 {similarTickets[selectedTicket.id] && similarTickets[selectedTicket.id].length > 0 && (
                   <div style={{ padding: '10px 20px', background: '#f8fbfa', borderBottom: '1px solid var(--line)', fontSize: '0.82rem' }}>
                     <strong>Similar Incidents:</strong>{' '}
-                    {similarTickets[selectedTicket.id].map((sim, i) => (
+                    {similarTickets[selectedTicket.id]?.map((sim, i) => (
                       <span key={i} style={{ marginRight: '10px', color: 'var(--teal-dark)' }}>
                         • {sim.title} ({sim.status ?? 'RESOLVED'})
                       </span>

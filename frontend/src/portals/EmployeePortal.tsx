@@ -25,6 +25,8 @@ export const EmployeePortal: React.FC = () => {
   const [error, setError] = useState('');
   const [activity, setActivity] = useState<string[]>([]);
   const [isHumanTakeover, setIsHumanTakeover] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<'fixed' | 'having_issues' | 'not_sure' | null>(null);
+
 
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
   const prevCountRef = useRef<number>(0);
@@ -144,10 +146,18 @@ export const EmployeePortal: React.FC = () => {
     }
   }, [messages]);
 
+  useEffect(() => {
+    if (verificationStatus && chatWindowRef.current) {
+      scrollToBottom(true);
+    }
+  }, [verificationStatus]);
+
+
   const handleSelectConversation = (convId: string) => {
     setActiveConversationId(convId);
     sessionStorage.setItem('employee_active_conv', convId);
     setActivity([]);
+    setVerificationStatus(null);
     setError('');
     prevCountRef.current = 0;
   };
@@ -157,9 +167,11 @@ export const EmployeePortal: React.FC = () => {
     sessionStorage.setItem('employee_active_conv', 'new');
     setMessages([]);
     setActivity([]);
+    setVerificationStatus(null);
     setError('');
     prevCountRef.current = 0;
   };
+
 
   const handleEndConversation = async () => {
     if (!activeConversationId || isClosing) return;
@@ -317,7 +329,106 @@ export const EmployeePortal: React.FC = () => {
             );
           })
         )}
+
+        {/* User-verification flow (Demo) */}
+        {(() => {
+          const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+          const showVerificationPrompt =
+            lastMsg &&
+            lastMsg.sender_type === 'AI' &&
+            !isCurrentConvClosed &&
+            !isHumanTakeover;
+
+          if (!showVerificationPrompt) return null;
+
+          return (
+            <div className="verification-card" role="region" aria-label="Resolution verification">
+              <p className="verification-title">Is your issue fixed?</p>
+
+              {!verificationStatus ? (
+                <div className="verification-actions">
+                  <button
+                    type="button"
+                    className="verification-btn verification-btn-yes"
+                    onClick={() => setVerificationStatus('fixed')}
+                  >
+                    <span className="btn-icon"></span> Yes, it's fixed
+                  </button>
+                  <button
+                    type="button"
+                    className="verification-btn verification-btn-no"
+                    onClick={() => setVerificationStatus('having_issues')}
+                  >
+                    <span className="btn-icon"></span> No, still having issues
+                  </button>
+                  <button
+                    type="button"
+                    className="verification-btn verification-btn-unsure"
+                    onClick={() => setVerificationStatus('not_sure')}
+                  >
+                    <span className="btn-icon"></span> I'm not sure
+                  </button>
+                </div>
+              ) : verificationStatus === 'fixed' ? (
+                <div className="verification-state state-fixed">
+                  <div className="verification-state-content">
+                    <span className="state-icon">✓</span>
+                    <div>
+                      <strong>Issue Confirmed Fixed</strong>
+                      <p>Great! Marked as resolved. If you need anything else, feel free to start a new chat or continue below.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="verification-reset-btn"
+                    onClick={() => setVerificationStatus(null)}
+                    title="Change response"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : verificationStatus === 'having_issues' ? (
+                <div className="verification-state state-issues">
+                  <div className="verification-state-content">
+                    <span className="state-icon"></span>
+                    <div>
+                      <strong>Need further help?</strong>
+                      <p>Please describe what happened when trying the steps, or any new error messages you're seeing.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="verification-reset-btn"
+                    onClick={() => setVerificationStatus(null)}
+                    title="Change response"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <div className="verification-state state-escalate">
+                  <div className="verification-state-content">
+                    <span className="state-icon"></span>
+                    <div>
+                      <strong>Escalation to L1 Support Engineer</strong>
+                      <p>Your request will be routed to a human L1 support engineer for manual assistance and follow-up.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="verification-reset-btn"
+                    onClick={() => setVerificationStatus(null)}
+                    title="Change response"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
+
 
 
       {activity.length > 0 && (
@@ -351,8 +462,8 @@ export const EmployeePortal: React.FC = () => {
               isHumanTakeover
                 ? 'Type your reply to the engineer...'
                 : activeConversationId
-                ? 'Reply or ask a follow-up question...'
-                : 'Describe your issue...'
+                  ? 'Reply or ask a follow-up question...'
+                  : 'Describe your issue...'
             }
             disabled={isSending}
           />
@@ -424,7 +535,7 @@ export const EmployeePortal: React.FC = () => {
 
 function buildActivity(state?: WorkflowState): string[] {
   if (!state) return [];
-  
+
   if (state.out_of_scope) {
     return [
       'Input evaluated by intake guardrails.',
@@ -441,20 +552,20 @@ function buildActivity(state?: WorkflowState): string[] {
   }
 
   const items: string[] = ['Request processed by AI RAG workflow.'];
-  
+
   if (state.category) {
     items.push(`Categorized as: ${formatLabel(state.category)}`);
   }
-  
+
   if (typeof state.retrieval_score === 'number' && state.retrieval_score > 0) {
     const pct = (state.retrieval_score * 100).toFixed(1);
     items.push(`Retrieval Similarity Score: ${pct}% (Cutoff: 72.0%)`);
   }
-  
+
   if (state.tool_history && state.tool_history.length > 0) {
     items.push(`Diagnostic Tools Executed: ${state.tool_history.join(', ')}`);
   }
-  
+
   if (Array.isArray(state.evidence)) {
     const kbTitles: string[] = [];
     for (const item of state.evidence) {
@@ -471,13 +582,13 @@ function buildActivity(state?: WorkflowState): string[] {
       items.push(`Referenced KB Articles: ${kbTitles.join(' | ')}`);
     }
   }
-  
+
   if (state.needs_handoff || state.escalate || state.status === 'human_takeover') {
     items.push('Escalated to human L1 support engineer ticket queue.');
   } else if (state.status) {
     items.push(`Workflow status: ${formatLabel(state.status)}`);
   }
-  
+
   return items;
 }
 

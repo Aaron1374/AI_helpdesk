@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     # Add embedding and department to tickets
-    op.add_column('tickets', sa.Column('embedding', Vector(1536), nullable=True))
+    op.add_column('tickets', sa.Column('embedding', Vector(3072), nullable=True))
     op.add_column('tickets', sa.Column('department', sa.String(), nullable=True))
     
     # Add department to users

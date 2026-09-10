@@ -25,7 +25,7 @@ def upgrade():
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column('title', sa.String(), nullable=False),
         sa.Column('content', sa.String(), nullable=False),
-        sa.Column('embedding', Vector(1536), nullable=True),
+        sa.Column('embedding', Vector(3072), nullable=True),
         sa.Column('metadata', postgresql.JSONB(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),

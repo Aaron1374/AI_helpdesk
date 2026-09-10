@@ -1,4 +1,5 @@
 import re
+import json
 from typing import List, Dict, Any, Optional
 
 def sanitize_input(text: str) -> str:
@@ -26,59 +27,129 @@ def sanitize_input(text: str) -> str:
     return sanitized.strip()
 
 
-def is_response_from_knowledge_base(answer: str, evidence: List[Dict[str, Any]]) -> bool:
+def is_response_from_knowledge_base(
+    answer: str,
+    evidence: List[Dict[str, Any]]
+) -> bool:
     """
-    Verify that the generated LLM response is grounded in the retrieved knowledge base
-    or mock tool evidence. Returns True if evidence is present and cited or referenced.
+    Verify that the generated response is grounded in retrieved
+    knowledge-base documents or diagnostic tool evidence.
+
+    Returns True only when the answer contains meaningful evidence
+    from the supplied documents or tool results.
     """
+
     if not answer or not answer.strip():
         return False
-        
+
     if not evidence:
         return False
-        
+
     answer_lower = answer.lower()
-    
-    # Check if answer contains refusal phrases indicating evidence was unhelpful
+
+    # Refusal/uncertainty responses should not be treated as grounded answers
     refusal_phrases = [
-        "cannot answer", "don't know", "no information", "unable to assist",
-        "no knowledge base", "not mentioned in the provided", "insufficient evidence"
+        "cannot answer",
+        "don't know",
+        "no information",
+        "unable to assist",
+        "no knowledge base",
+        "not mentioned in the provided",
+        "insufficient evidence",
     ]
-    for refusal in refusal_phrases:
-        if refusal in answer_lower:
-            return False
-            
-    # Check if any evidence item matches content/keywords in the answer
+
+    if any(phrase in answer_lower for phrase in refusal_phrases):
+        return False
+
+    # Check evidence
     for item in evidence:
-        if isinstance(item, dict):
-            # Check knowledge or ticket documents
-            if "documents" in item and isinstance(item["documents"], list):
-                for doc in item["documents"]:
-                    title = doc.get("title", "").lower()
-                    content = doc.get("content", "").lower()
-                    # Check title overlap or significant content word overlap
-                    if title and title in answer_lower:
+        if not isinstance(item, dict):
+            continue
+
+        # --------------------------------------------------
+        # Knowledge-base documents
+        # --------------------------------------------------
+        documents = item.get("documents")
+
+        if isinstance(documents, list):
+            for doc in documents:
+                if not isinstance(doc, dict):
+                    continue
+
+                title = str(doc.get("title", "")).lower()
+                content = str(doc.get("content", "")).lower()
+
+                # Strong match: document title appears in answer
+                if title and title in answer_lower:
+                    return True
+
+                # Match meaningful title words
+                title_words = {
+                    word
+                    for word in re.findall(r"\w+", title)
+                    if len(word) > 4
+                }
+
+                if title_words:
+                    title_matches = sum(
+                        1 for word in title_words
+                        if word in answer_lower
+                    )
+
+                    if title_matches >= 2:
                         return True
-                    # Check key terms (words > 4 chars) from title
-                    title_words = [w for w in re.findall(r"\w+", title) if len(w) > 4]
-                    if title_words and any(tw in answer_lower for tw in title_words):
+
+                # Match meaningful content terms
+                content_words = {
+                    word
+                    for word in re.findall(r"\w+", content)
+                    if len(word) > 5
+                }
+
+                if content_words:
+                    content_matches = sum(
+                        1 for word in content_words
+                        if word in answer_lower
+                    )
+
+                    # Require multiple independent matches
+                    if content_matches >= 3:
                         return True
-                    # Check content snippet overlap
-                    if content and len(content) > 10:
-                        content_snippets = [w for w in re.findall(r"\w+", content) if len(w) > 4]
-                        matches = [sw for sw in content_snippets if sw in answer_lower]
-                        if len(matches) >= 2:
-                            return True
-            # Direct evidence dictionary (e.g., mock tool result or individual doc)
-            title = item.get("title", "").lower()
-            if title and title in answer_lower:
-                return True
-            if "status" in item or "connected" in item or "compliant" in item or "result" in item:
-                # Tool evidence
-                return True
-                
-    # Default permissive check if evidence exists and answer is non-trivial and not a refusal
-    return len(answer.strip()) > 15
+
+        # --------------------------------------------------
+        # Direct evidence item
+        # --------------------------------------------------
+        title = str(item.get("title", "")).lower()
+
+        if title and title in answer_lower:
+            return True
+
+        # --------------------------------------------------
+        # Diagnostic tool evidence
+        # --------------------------------------------------
+        if item.get("source") == "diagnostic_tool":
+            result = item.get("result")
+
+            if result:
+                result_text = json.dumps(result, default=str).lower()
+
+                result_words = {
+                    word
+                    for word in re.findall(r"\w+", result_text)
+                    if len(word) > 4
+                }
+
+                matches = sum(
+                    1 for word in result_words
+                    if word in answer_lower
+                )
+
+                if matches >= 2:
+                    return True
+
+    # IMPORTANT:
+    # Do NOT automatically accept an answer just because it is long.
+    return False
 
 
 def select_mock_tool(query: str) -> Optional[str]:

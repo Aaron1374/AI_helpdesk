@@ -43,19 +43,39 @@ def preprocess_node(state: AgentState):
 clarify_node = preprocess_node
 
 
+ALLOWED_CATEGORIES = {
+    "access",
+    "network",
+    "hardware",
+    "software",
+    "email",
+    "security",
+    "application",
+}
+
 def classify_node(state: AgentState):
     text = state.get("sanitized_query") or state.get("input", "")
     llm = get_chat_model()
-    
+
     if llm:
         try:
             prompt = [
-                SystemMessage(content="Classify the IT issue into one of these standard categories: Access, Network, Hardware, Software, Email, Security, Application. Reply with only the category name."),
-                HumanMessage(content=text)
+                SystemMessage(
+                    content=(
+                        "Classify the IT issue into exactly ONE of these categories:\n"
+                        "Access, Network, Hardware, Software, Email, Security, Application.\n\n"
+                        "Reply with ONLY the category name."
+                    )
+                ),
+                HumanMessage(content=text),
             ]
+
             res = llm.invoke(prompt)
             cat = res.content.strip().lower()
-            return {"category": cat}
+
+            if cat in ALLOWED_CATEGORIES:
+                return {"category": cat}
+
         except Exception:
             pass
 

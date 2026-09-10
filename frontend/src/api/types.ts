@@ -47,9 +47,12 @@ export interface WorkflowState {
   category?: string;
   status?: string;
   escalate?: boolean;
-  evidence?: unknown[];
+  needs_handoff?: boolean;
+  retrieval_score?: number;
+  evidence?: any[];
   tool_history?: string[];
 }
+
 
 export interface TicketItem {
   id: string;

@@ -1,31 +1,31 @@
 from src.workflow.state import AgentState
 from src.services.retrieval_service import RetrievalService
 from src.core.db import AsyncSessionLocal
-import asyncio
+import logging
 
-def retrieve_node(state: AgentState):
-    query = state.get("input", "")
-    user_context = state.get("user_context", {})
+logger = logging.getLogger(__name__)
+
+async def retrieve_node(state: AgentState):
+    """Async retrieval node — runs on the same event loop as FastAPI/LangGraph."""
+    query = state.get("sanitized_query") or state.get("input", "")
+    user_context = state.get("user_context", {}) or {}
     user_department = user_context.get("department", "general")
-    
-    # Normally we'd pass db session down cleanly, but in async node we can manage it
-    async def do_retrieval():
-        async with AsyncSessionLocal() as session:
-            docs = await RetrievalService.get_similar_documents(session, query, user_department)
-            return docs
-            
-    try:
-        # In actual langgraph async nodes this would just be awaited
-        try:
-            loop = asyncio.get_running_loop()
-            docs = loop.run_until_complete(do_retrieval())
-        except RuntimeError:
-            docs = asyncio.run(do_retrieval())
-    except Exception:
-        docs = []
 
-    evidence = state.get("evidence", [])
+    docs = []
+    score = 0.0
+    try:
+        async with AsyncSessionLocal() as session:
+            docs, score = await RetrievalService.get_similar_documents(
+                session, query, user_department
+            )
+    except Exception as e:
+        logger.warning(f"Error during retrieval node execution: {e}")
+        docs = []
+        score = 0.0
+
+    evidence = list(state.get("evidence", []))
     if docs:
         evidence.append({"source": "knowledge_and_incidents", "documents": docs})
-        
-    return {"evidence": evidence}
+
+    logger.info(f"Retrieval completed — query: '{query[:60]}', score: {score:.4f}, docs: {len(docs)}")
+    return {"evidence": evidence, "retrieval_score": score}

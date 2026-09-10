@@ -34,10 +34,14 @@ def _client_kwargs() -> dict[str, Any]:
     return kwargs
 
 
-def get_chat_model():
+def get_chat_model(temperature: float = None, seed: int = None):
     provider = _setting("LLM_PROVIDER", "openai").lower()
     model = _setting("LLM_MODEL", "gpt-4o-mini")
-    temperature = float(_setting("LLM_TEMPERATURE", "0"))
+    if temperature is None:
+        temperature = float(_setting("LLM_TEMPERATURE", "0"))
+    if seed is None:
+        seed_env = _setting("LLM_SEED", "42")
+        seed = int(seed_env) if seed_env.isdigit() else None
 
     if provider in {"google", "gemini"}:
         try:
@@ -46,11 +50,12 @@ def get_chat_model():
             return None
         if not _setting("GOOGLE_API_KEY"):
             return None
-        return ChatGoogleGenerativeAI(
-            model=model,
-            temperature=temperature,
-            google_api_key=_setting("GOOGLE_API_KEY"),
-        )
+        kwargs = {
+            "model": model,
+            "temperature": temperature,
+            "google_api_key": _setting("GOOGLE_API_KEY"),
+        }
+        return ChatGoogleGenerativeAI(**kwargs)
 
     if provider in {"xai", "grok"}:
         # xAI exposes an OpenAI-compatible API.
@@ -60,12 +65,15 @@ def get_chat_model():
             from langchain_openai import ChatOpenAI
         except ImportError:
             return None
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            api_key=_setting("XAI_API_KEY"),
-            base_url=_setting("XAI_BASE_URL", "https://api.x.ai/v1"),
-        )
+        kwargs = {
+            "model": model,
+            "temperature": temperature,
+            "api_key": _setting("XAI_API_KEY"),
+            "base_url": _setting("XAI_BASE_URL", "https://api.x.ai/v1"),
+        }
+        if seed is not None:
+            kwargs["seed"] = seed
+        return ChatOpenAI(**kwargs)
 
     if provider in {"openai", "openai_compatible", "ollama", "custom"}:
         if not _setting("OPENAI_API_KEY"):
@@ -74,13 +82,18 @@ def get_chat_model():
             from langchain_openai import ChatOpenAI
         except ImportError:
             return None
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
+        kwargs = {
+            "model": model,
+            "temperature": temperature,
             **_client_kwargs(),
-        )
+        }
+        if seed is not None:
+            kwargs["seed"] = seed
+        return ChatOpenAI(**kwargs)
+
 
     raise ValueError(f"Unsupported LLM_PROVIDER: {provider}")
+
 
 
 def get_embedding_model():

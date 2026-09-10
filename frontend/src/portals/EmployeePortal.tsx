@@ -417,15 +417,48 @@ export const EmployeePortal: React.FC = () => {
 
 function buildActivity(state?: WorkflowState): string[] {
   if (!state) return [];
-  const items = ['Request received and workflow completed.'];
-  if (state.category) items.push(`Classified as ${formatLabel(state.category)}.`);
-  if (state.tool_history?.length) items.push(`Diagnostic tools used: ${state.tool_history.join(', ')}.`);
-  if (state.evidence?.length) items.push(`${state.evidence.length} evidence item(s) collected.`);
-  if (state.escalate || state.status === 'human_takeover') items.push('Escalation policy transferred the conversation to a human engineer.');
-  if (state.status && state.status !== 'human_takeover') items.push(`Workflow status: ${formatLabel(state.status)}.`);
+  const items: string[] = ['Request processed by AI RAG workflow.'];
+  
+  if (state.category) {
+    items.push(`Categorized as: ${formatLabel(state.category)}`);
+  }
+  
+  if (typeof state.retrieval_score === 'number' && state.retrieval_score > 0) {
+    const pct = (state.retrieval_score * 100).toFixed(1);
+    items.push(`Retrieval Similarity Score: ${pct}% (Cutoff: 72.0%)`);
+  }
+  
+  if (state.tool_history && state.tool_history.length > 0) {
+    items.push(`Diagnostic Tools Executed: ${state.tool_history.join(', ')}`);
+  }
+  
+  if (Array.isArray(state.evidence)) {
+    const kbTitles: string[] = [];
+    for (const item of state.evidence) {
+      if (item && typeof item === 'object' && Array.isArray((item as any).documents)) {
+        for (const doc of (item as any).documents) {
+          if (doc?.title && !kbTitles.includes(doc.title)) {
+            const scoreLabel = doc.score ? ` (Score: ${(doc.score * 100).toFixed(1)}%)` : '';
+            kbTitles.push(`"${doc.title}"${scoreLabel}`);
+          }
+        }
+      }
+    }
+    if (kbTitles.length > 0) {
+      items.push(`Referenced KB Articles: ${kbTitles.join(' | ')}`);
+    }
+  }
+  
+  if (state.needs_handoff || state.escalate || state.status === 'human_takeover') {
+    items.push('Escalated to human L1 support engineer ticket queue.');
+  } else if (state.status) {
+    items.push(`Workflow status: ${formatLabel(state.status)}`);
+  }
+  
   return items;
 }
 
 function formatLabel(value: string): string {
   return value.split('_').join(' ');
 }
+

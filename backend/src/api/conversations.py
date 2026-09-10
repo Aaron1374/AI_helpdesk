@@ -269,7 +269,21 @@ async def add_message(conversation_id: str, message: MessageCreate, user: dict =
 
     # 3. Invoke LangGraph for active AI conversations
     workflow_status = "human_takeover" if conversation.owner_type == ConversationOwner.HUMAN else conversation.status.value
-    initial_state = {"input": message.content, "messages": [], "evidence": [], "tool_history": [], "user_context": user, "status": workflow_status}
+    initial_state = {
+            "input": message.content,
+            "sanitized_query": "",
+            "messages": [],
+            "evidence": [],
+            "tool_history": [],
+            "user_context": user,
+            "status": workflow_status,
+            "retrieval_score": 0.0,
+            "needs_handoff": False,
+            "needs_clarification": False,
+            "escalate": False,
+            "category": "",
+        }
+
     final_state = await graph_app.ainvoke(initial_state)
 
     responses = []

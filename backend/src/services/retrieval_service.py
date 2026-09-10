@@ -10,16 +10,18 @@ from src.core.llm import get_embedding_model
 
 logger = logging.getLogger(__name__)
 
+from typing import List, Dict, Any, Tuple
+
 class RetrievalService:
     @staticmethod
     async def get_similar_documents(
         db: AsyncSession, 
         query_text: str, 
         user_department: str = None,
-        limit: int = 3
-    ) -> List[Dict[str, Any]]:
+        limit: int = 5
+    ) -> Tuple[List[Dict[str, Any]], float]:
         if not query_text or not query_text.strip():
-            return []
+            return [], 0.0
 
         # Graceful fallback if no embeddings provider
         embeddings_model = None
@@ -29,46 +31,66 @@ class RetrievalService:
             logger.warning(f"Could not initialize embeddings: {e}")
                 
         if not embeddings_model:
-            return []
+            return [], 0.0
 
         try:
             query_embedding = embeddings_model.embed_query(query_text)
         except Exception as e:
             logger.warning(f"Failed to generate embedding: {e}")
-            return []
+            return [], 0.0
 
-        # Knowledge Base Retrieval
-        # Object-level auth: match department or allow generic (None)
-        kb_stmt = select(KnowledgeDocument).where(
-            or_(KnowledgeDocument.department == user_department, KnowledgeDocument.department == None)
-        ).order_by(KnowledgeDocument.embedding.cosine_distance(query_embedding)).limit(limit)
-        
-        kb_result = await db.execute(kb_stmt)
-        kb_docs = kb_result.scalars().all()
-
-        # Ticket/Incident Retrieval (Duplicate incidents)
-        # Object-level auth: strict department matching only
-        ticket_stmt = select(Ticket).where(
-            Ticket.department == user_department
-        ).order_by(Ticket.embedding.cosine_distance(query_embedding)).limit(limit)
-        
-        ticket_result = await db.execute(ticket_stmt)
-        ticket_docs = ticket_result.scalars().all()
-        
+        scores: List[float] = []
         filtered = []
-        for doc in kb_docs:
-            filtered.append({
-                "type": "knowledge",
-                "title": doc.title,
-                "content": doc.content
-            })
+
+        try:
+            # Knowledge Base Retrieval with Cosine Distance
+            kb_dist = KnowledgeDocument.embedding.cosine_distance(query_embedding)
+            kb_stmt = select(KnowledgeDocument, kb_dist.label("distance")).where(
+                or_(KnowledgeDocument.department == user_department, KnowledgeDocument.department == None)
+            ).order_by(kb_dist).limit(limit)
             
-        for t in ticket_docs:
-            filtered.append({
-                "type": "ticket",
-                "title": t.title,
-                "content": t.description,
-                "status": t.status.value
-            })
+            kb_result = await db.execute(kb_stmt)
+            kb_rows = kb_result.all()
+
+            for row in kb_rows:
+                doc = row[0]
+                dist = row[1] if len(row) > 1 else None
+                sim_score = max(0.0, 1.0 - float(dist)) if dist is not None else 0.0
+                scores.append(sim_score)
+                filtered.append({
+                    "type": "knowledge",
+                    "title": doc.title,
+                    "content": doc.content,
+                    "score": sim_score
+                })
+        except Exception as e:
+            logger.warning(f"KB retrieval error: {e}")
+
+        try:
+            # Ticket/Incident Retrieval (Duplicate incidents)
+            ticket_dist = Ticket.embedding.cosine_distance(query_embedding)
+            ticket_stmt = select(Ticket, ticket_dist.label("distance")).where(
+                Ticket.department == user_department
+            ).order_by(ticket_dist).limit(limit)
+            
+            ticket_result = await db.execute(ticket_stmt)
+            ticket_rows = ticket_result.all()
+
+            for row in ticket_rows:
+                t = row[0]
+                dist = row[1] if len(row) > 1 else None
+                sim_score = max(0.0, 1.0 - float(dist)) if dist is not None else 0.0
+                scores.append(sim_score)
+                filtered.append({
+                    "type": "ticket",
+                    "title": t.title,
+                    "content": t.description,
+                    "status": t.status.value,
+                    "score": sim_score
+                })
+        except Exception as e:
+            logger.warning(f"Ticket retrieval error: {e}")
                 
-        return filtered
+        max_score = max(scores) if scores else 0.0
+        return filtered, max_score
+

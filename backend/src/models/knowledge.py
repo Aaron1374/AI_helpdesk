@@ -11,7 +11,7 @@ class KnowledgeDocument(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String, nullable=False)
     content = Column(String, nullable=False)
-    embedding = Column(Vector(1536), nullable=True) # OpenAI ada-002 dimension
+    embedding = Column(Vector(3072), nullable=True) # OpenAI ada-002 dimension
     metadata_ = Column("metadata", JSONB, nullable=True) # ACLs, categories, etc.
     department = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

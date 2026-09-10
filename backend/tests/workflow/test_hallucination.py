@@ -1,18 +1,21 @@
-
-# pyrefly: ignore [missing-import]
 import pytest
 from unittest.mock import patch, MagicMock
-# pyrefly: ignore [missing-import]
 from src.workflow.nodes.resolution import resolve_node
 
 def test_ai_does_not_invent_system_state():
     # Test without evidence or score below threshold -> escalate / handoff
-    state_no_evidence = {"retrieval_score": 0.20, "evidence": []}
+    state_no_evidence = {
+        "input": "VPN connection failure",
+        "sanitized_query": "VPN connection failure",
+        "retrieval_score": 0.20,
+        "evidence": []
+    }
     result = resolve_node(state_no_evidence)
     
     assert result.get("escalate") is True
     assert result.get("needs_handoff") is True
     assert result.get("status") == "escalated"
+
     
     # Test with valid evidence and high score -> resolved
     state_with_evidence = {

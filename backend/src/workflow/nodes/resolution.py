@@ -9,7 +9,7 @@ from src.workflow.state import AgentState
 from src.tools.gateway import ToolGateway
 from src.core.llm import get_chat_model
 from src.workflow.constants import SIMILARITY_THRESHOLD, LLM_TEMPERATURE, LLM_SEED
-from src.workflow.utils.guardrails import select_mock_tool, is_response_from_knowledge_base
+from src.workflow.utils.guardrails import select_mock_tool, is_response_from_knowledge_base, is_it_support_query
 
 logger = logging.getLogger(__name__)
 
@@ -96,12 +96,32 @@ def resolve_node(state: AgentState):
 
     # 1. Similarity Threshold Enforcement (Cutoff = 0.72)
     if retrieval_score < SIMILARITY_THRESHOLD:
-        logger.info(f"Retrieval score {retrieval_score} below threshold {SIMILARITY_THRESHOLD}. Requesting handoff.")
+        # Check if the query is even IT-related before wasting engineer time
+        if not is_it_support_query(sanitized_query):
+            logger.info(f"Query '{sanitized_query}' is out of scope for IT support (score={retrieval_score:.4f}).")
+            return {
+                "out_of_scope": True,
+                "needs_handoff": False,
+                "escalate": False,
+                "status": "resolved",
+                "messages": [AIMessage(
+                    content=(
+                        "I'm sorry, but your request doesn't appear to be related to IT support. "
+                        "I can help with issues like VPN problems, password resets, software installation, "
+                        "email issues, hardware problems, and other IT-related topics.\n\n"
+                        "Please describe an IT issue and I'll be happy to assist!"
+                    )
+                )]
+            }
+
+        # IT-related but low confidence — escalate to human
+        logger.info(f"Retrieval score {retrieval_score:.4f} below threshold {SIMILARITY_THRESHOLD}. Escalating IT query to engineer.")
         return {
             "needs_handoff": True,
             "escalate": True,
             "status": "escalated"
         }
+
 
     # 2. Dynamic Tool Check if not executed in diagnose node
     tool_name = select_mock_tool(sanitized_query)

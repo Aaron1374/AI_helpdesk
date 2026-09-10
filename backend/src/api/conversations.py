@@ -281,8 +281,10 @@ async def add_message(conversation_id: str, message: MessageCreate, user: dict =
             "needs_handoff": False,
             "needs_clarification": False,
             "escalate": False,
+            "out_of_scope": False,
             "category": "",
         }
+
 
     final_state = await graph_app.ainvoke(initial_state)
 

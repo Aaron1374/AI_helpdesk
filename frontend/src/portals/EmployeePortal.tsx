@@ -8,6 +8,8 @@ import {
   closeConversation,
 } from '../api/client';
 import type { WorkflowState, ChatMessageRecord, ConversationItem } from '../api/types';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
+
 
 export const EmployeePortal: React.FC = () => {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -298,20 +300,25 @@ export const EmployeePortal: React.FC = () => {
             const isUser = msg.sender_type === 'USER';
             const messageClass = isEngineer ? 'support' : isUser ? 'user' : 'ai';
             const label = isEngineer ? 'Support Engineer' : isUser ? 'You' : 'AI Helpdesk';
+            const cleanContent = isEngineer && msg.content.startsWith('[Engineer] ')
+              ? msg.content.replace('[Engineer] ', '')
+              : msg.content;
+
 
             return (
               <div key={msg.id || idx} className={`message ${messageClass}`}>
                 <span className="message-label">{label}</span>
-                <span style={{ whiteSpace: 'pre-wrap' }}>
-                  {isEngineer && msg.content.startsWith('[Engineer] ')
-                    ? msg.content.replace('[Engineer] ', '')
-                    : msg.content}
-                </span>
+                {isUser ? (
+                  <span style={{ whiteSpace: 'pre-wrap' }}>{cleanContent}</span>
+                ) : (
+                  <MarkdownRenderer content={cleanContent} />
+                )}
               </div>
             );
           })
         )}
       </div>
+
 
       {activity.length > 0 && (
         <section className="activity-panel" aria-label="Agent activity">
@@ -417,6 +424,22 @@ export const EmployeePortal: React.FC = () => {
 
 function buildActivity(state?: WorkflowState): string[] {
   if (!state) return [];
+  
+  if (state.out_of_scope) {
+    return [
+      'Input evaluated by intake guardrails.',
+      'Scope check: Non-IT query detected (out of scope).',
+      'Provided out-of-scope guidance without routing to engineer queue.',
+    ];
+  }
+
+  if (state.needs_clarification) {
+    return [
+      'Input evaluated by intake triage.',
+      'Greeting or short input detected — requested clarification from user.',
+    ];
+  }
+
   const items: string[] = ['Request processed by AI RAG workflow.'];
   
   if (state.category) {
@@ -457,6 +480,7 @@ function buildActivity(state?: WorkflowState): string[] {
   
   return items;
 }
+
 
 function formatLabel(value: string): string {
   return value.split('_').join(' ');

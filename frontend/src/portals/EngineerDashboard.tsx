@@ -9,6 +9,8 @@ import {
   ApiError,
 } from '../api/client';
 import type { TicketItem, SimilarIncident, ChatMessageRecord } from '../api/types';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
+
 
 export const EngineerDashboard: React.FC = () => {
   const [tickets, setTickets] = useState<TicketItem[]>([]);
@@ -320,20 +322,25 @@ export const EngineerDashboard: React.FC = () => {
                       const isUser = msg.sender_type === 'USER';
                       const messageClass = isEngineer ? 'support' : isUser ? 'user' : 'ai';
                       const label = isEngineer ? 'Support Engineer' : isUser ? 'Employee' : 'AI Helpdesk';
+                      const cleanContent = isEngineer && msg.content.startsWith('[Engineer] ')
+                        ? msg.content.replace('[Engineer] ', '')
+                        : msg.content;
+
 
                       return (
                         <div key={msg.id || idx} className={`message ${messageClass}`}>
                           <span className="message-label">{label}</span>
-                          <span style={{ whiteSpace: 'pre-wrap' }}>
-                            {isEngineer && msg.content.startsWith('[Engineer] ')
-                              ? msg.content.replace('[Engineer] ', '')
-                              : msg.content}
-                          </span>
+                          {isUser ? (
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{cleanContent}</span>
+                          ) : (
+                            <MarkdownRenderer content={cleanContent} />
+                          )}
                         </div>
                       );
                     })
                   )}
                 </div>
+
 
                 {/* Reply Footer */}
                 <div className="console-footer">

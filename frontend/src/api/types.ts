@@ -48,10 +48,13 @@ export interface WorkflowState {
   status?: string;
   escalate?: boolean;
   needs_handoff?: boolean;
+  out_of_scope?: boolean;
+  needs_clarification?: boolean;
   retrieval_score?: number;
   evidence?: any[];
   tool_history?: string[];
 }
+
 
 
 export interface TicketItem {

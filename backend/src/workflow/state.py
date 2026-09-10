@@ -10,10 +10,12 @@ class AgentState(TypedDict):
     needs_clarification: bool
     escalate: bool
     needs_handoff: bool
+    out_of_scope: bool
     retrieval_score: float
     category: str
     evidence: List[dict]
     tool_history: List[str]
     status: str
     user_context: Dict[str, Any]
+
 

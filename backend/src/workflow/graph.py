@@ -38,7 +38,7 @@ def check_injection(state: AgentState):
 workflow.add_conditional_edges("injection_pre_check", check_injection)
 
 def check_clarification(state: AgentState):
-    if state.get("needs_clarification"):
+    if state.get("needs_clarification") or state.get("out_of_scope"):
         return END
     return "classify"
 

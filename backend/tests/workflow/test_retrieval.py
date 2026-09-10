@@ -10,7 +10,8 @@ async def test_retrieval_respects_rbac():
     assert isinstance(docs, list)
     assert isinstance(score, float)
 
-def test_similarity_is_evidence_not_fact():
+@pytest.mark.asyncio
+async def test_similarity_is_evidence_not_fact():
     state = {
         "input": "vpn issue",
         "sanitized_query": "vpn issue",
@@ -18,7 +19,7 @@ def test_similarity_is_evidence_not_fact():
         "evidence": []
     }
     
-    with patch("src.workflow.nodes.retrieval.RetrievalService.get_similar_documents") as mock_get:
+    with patch("src.workflow.nodes.retrieval.RetrievalService.get_similar_documents", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = (
             [
                 {"type": "knowledge", "title": "VPN Guide", "content": "Connect to VPN", "score": 0.85},
@@ -27,7 +28,7 @@ def test_similarity_is_evidence_not_fact():
             0.85
         )
         
-        new_state = retrieve_node(state)
+        new_state = await retrieve_node(state)
         
         assert "evidence" in new_state
         assert new_state.get("retrieval_score") == 0.85

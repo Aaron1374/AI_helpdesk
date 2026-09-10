@@ -86,3 +86,15 @@ def test_resolve_node_above_threshold():
         assert result.get("escalate") is False
         assert result.get("status") == "resolved"
         assert len(result.get("messages")) == 1
+
+
+def test_out_of_scope_query_rejection():
+    state = {
+        "input": "My zomato delivery isn't delivered yet",
+    }
+    result = preprocess_node(state)
+    assert result.get("out_of_scope") is True
+    assert result.get("status") == "resolved"
+    assert len(result.get("messages")) == 1
+    assert "IT support" in result["messages"][0].content
+

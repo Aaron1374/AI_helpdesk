@@ -85,7 +85,7 @@ def get_chat_model():
 
 def get_embedding_model():
     provider = _setting("EMBEDDING_PROVIDER", _setting("LLM_PROVIDER", "openai")).lower()
-    default_model = "gemini-embedding-001" if provider in {"google", "gemini"} else "text-embedding-3-small"
+    default_model = "gemini-embedding-2" if provider in {"google", "gemini"} else "text-embedding-3-small"
     model = _setting("EMBEDDING_MODEL", default_model)
 
     if provider in {"google", "gemini"}:

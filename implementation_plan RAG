@@ -1,0 +1,170 @@
+# Final Detailed Strict RAG Workflow Implementation Plan
+
+## Objective
+Transform the existing triage workflow into a **deterministic Retrieval‑Augmented Generation (RAG)** pipeline that:
+1. **Embeds** the user’s sanitized input using the same embedding model (OpenAI ada‑002) as the knowledge‑base.
+2. **Searches** PGVector for the most similar documents, returning a **similarity score**.
+3. **Only** generates a response when the similarity score meets or exceeds **0.72**.
+4. **Uses** only the retrieved knowledge‑base evidence **and** the two hard‑coded mock tools (`vpn_check`, `device_check`).
+5. **Enforces** strict prompt‑injection guardrails (no internal model knowledge, no out‑of‑context actions – the existing `sanitize_input` already covers this).
+6. **Falls back** to the existing `handoff` node **only** when the above conditions are not satisfied.
+7. **Guarantees deterministic output** from the LLM (temperature = 0, fixed seed, deterministic token sampling).
+
+The workflow is built on **LangGraph** (`src/workflow/graph.py`).
+
+---
+## User Review Required
+> [!IMPORTANT]
+> This plan adds guard‑rail utilities, sets a fixed similarity cutoff of **0.72**, and forces deterministic LLM settings. The mock‑tool JSON format remains unchanged (as you indicated no need for modification). Please confirm you are happy with these choices.
+
+---
+## Open Questions – Resolved
+> [!NOTE]
+> 1. **Mock‑tool return schema** – No change required; the current hard‑coded JSON format is accepted.
+> 2. **Similarity metric** – Use **only** the numeric similarity score with a threshold of **0.72** (no top‑k combination).
+> 3. **Prompt‑injection sanitisation** – Already handled by `sanitize_input`; no additional measures needed.
+> 4. **Handoff payload** – Include **both** the full evidence list **and** a concise ticket summary for the engineer.
+
+---
+## Detailed Phase‑wise Plan (with Sub‑tasks)
+
+### Phase 1 – Guard‑rail Foundations (Estimated 2 h) ✅ DONE
+1. **Create `src/workflow/utils/guardrails.py`**
+   - `sanitize_input(text: str) -> str`
+     - Remove templating patterns `{{ ... }}` and dangerous characters (`;`, `--`, `/*`, `*/`).
+     - Truncate to **512 tokens**.
+   - `is_response_from_knowledge_base(answer: str, evidence: list) -> bool`
+     - Verify that at least one document identifier from `evidence` appears in `answer`.
+   - `select_mock_tool(query: str) -> Optional[Callable]`
+     - Keyword mapping: if the query contains "vpn" → `vpn_check`; if it contains "device" → `device_check`.
+2. **Add `src/workflow/constants.py`** with:
+```python
+SIMILARITY_THRESHOLD = 0.72
+LLM_TEMPERATURE = 0.0
+LLM_SEED = 42
+```
+3. **Extend `src/workflow/state.py`**
+   - New fields: `sanitized_query: str = ""`, `retrieval_score: float = 0.0`, `needs_handoff: bool = False`.
+4. **Unit tests** for each utility (sanitisation, guard check, tool selector).
+
+### Phase 2 – Retrieval Node (Estimated 2 h) ✅ DONE
+1. **Modify `src/workflow/nodes/retrieval.py`**
+   - Apply `sanitize_input` to `state["input"]` → store as `sanitized_query`.
+   - Call `RetrievalService.get_similar_documents(session, sanitized_query, department, top_k=5)` which now returns `(documents, score)`.
+   - Store `state["evidence"] = documents` and `state["retrieval_score"] = score`.
+   - Log the similarity score (`logger.info(f"Retrieval score: {score}")`).
+2. **Fallback**: on any error set `state["evidence"] = []` and `state["retrieval_score"] = 0.0`.
+
+### Phase 3 – Preprocess (formerly Clarify) Node (Estimated 1 h) ✅ DONE
+1. **Rename** `clarify_node` → `preprocess_node` in `src/workflow/nodes/triage.py`.
+2. **Logic**
+   - Detect short greetings (`len(text) < 4` or common greetings) → return `{ "needs_clarification": True, "messages": [...] }`.
+   - Otherwise, call `sanitize_input` and store result in `state["sanitized_query"]`.
+   - Return `{ "needs_clarification": False }`.
+3. **Update graph edges** to use the new node name.
+
+### Phase 4 – Resolution Node (Estimated 4 h) ✅ DONE
+1. **Create/replace `resolve_node(state: AgentState)`** in `src/workflow/nodes/resolution.py`:
+   - Retrieve `documents`, `score`, `sanitized_query`, and current `evidence` from state.
+   - **Threshold check**: `if score < SIMILARITY_THRESHOLD:` set `state["needs_handoff"] = True` and `return {}`.
+   - **Tool selection**: `tool = select_mock_tool(sanitized_query)`. If a tool matches, call `gateway.execute(user_context, tool.__name__, target_id="mock123")` and append its JSON result to `evidence`.
+   - **Deterministic RAG prompt**:
+```python
+system_msg = (
+    "You are an AI IT Helpdesk Assistant. Use ONLY the provided knowledge‑base documents and any mock tool results. "
+    "Do NOT fabricate information or rely on internal model knowledge."
+)
+user_msg = f"Issue: {sanitized_query}\nEvidence: {json.dumps(evidence, default=str)}"
+prompt = [SystemMessage(content=system_msg), HumanMessage(content=user_msg)]
+```
+   - **LLM invocation** with deterministic settings:
+```python
+llm = get_chat_model(temperature=LLM_TEMPERATURE, seed=LLM_SEED)
+response = llm.invoke(prompt)
+```
+   - **Guard check**: `if not is_response_from_knowledge_base(response.content, evidence): state["needs_handoff"] = True`.
+   - Return `{ "answer": response.content, "evidence": evidence, "status": "resolved" }` when not handed off.
+2. **Logging** at each step (sanitised query, score, tool usage, guard outcome).
+3. **Unit tests** covering:
+   - Score ≥ 0.72 → resolved answer.
+   - Score < 0.72 → handoff.
+   - Guard rejects answer lacking citation.
+   - Deterministic output (same input yields identical answer across runs).
+
+### Phase 5 – Handoff & Escalation Nodes (Estimated 1 h) ✅ DONE
+1. **`handoff.py`**
+   - Execute only when `state["needs_handoff"]` is `True`.
+   - Payload includes **both**:
+     - Full `evidence` list (raw documents + mock‑tool JSONs).
+     - A concise ticket summary, e.g.:
+```json
+{"query": sanitized_query, "summary": "User issue could not be resolved automatically.", "evidence_count": len(evidence)}
+```
+   - Create a ticket via `Ticket.create(...)` and return the ticket ID.
+2. **`escalation.py`**
+   - Trigger after `handoff_node` completes, forwarding the ticket ID to the engineer dashboard.
+
+### Phase 6 – Graph Wiring (LangGraph) (Estimated 2 h) ✅ DONE
+1. **Update `src/workflow/graph.py`**
+   - Edge order:
+     `preprocess_node` → `retrieve_node` → `classify_node` → `resolve_node` → (conditional) `handoff_node` → `escalate_node` → `human` → END.
+   - **Conditional edge**:
+```python
+    return "handoff" if state.get("needs_handoff", False) else "verify"
+```
+   - Keep existing `verify` → END and `escalate` → "human" → END edges.
+2. **Re‑compile** the workflow: `app = workflow.compile()`.
+
+### Phase 7 – Integration & Configuration (Estimated 1 h) ✅ DONE
+1. **FastAPI entry point (`src/main.py`)**
+   - Pass the raw user message directly to the graph; `preprocess_node` will sanitise it.
+   - Inject a singleton `ToolGateway` with `allowed_tools={"vpn_check", "device_check"}`.
+2. **Environment variables** (with defaults in `constants.py`):
+   - `SIMILARITY_THRESHOLD` (default 0.72)
+   - `LLM_TEMPERATURE` (default 0.0)
+   - `LLM_SEED` (default 42)
+
+### Phase 8 – Testing, Documentation & QA (Estimated 3 h)
+1. **Run full test suite** (`pytest`).
+2. **Add new tests** for:
+   - Exact threshold edge (`score == 0.72`).
+   - Mock‑tool execution returns the existing hard‑coded JSON.
+   - Prompt‑injection attempts are already blocked by `sanitize_input`.
+   - Deterministic LLM output (run same prompt twice, assert equality).
+3. **Manual API validation**:
+   - Query with a known KB match → verify citations in answer.
+   - Query with no match → verify handoff payload contains both full evidence and summary.
+   - Malicious prompt → confirm it is sanitized and never reaches the LLM.
+4. **Update README**:
+   - Explain the deterministic RAG flow, guard‑rails, similarity threshold, mock‑tool policy, and configuration via env vars.
+   - Document location of mock tools (`resolution.py`).
+   - Provide example `curl` commands.
+
+---
+## Verification Plan
+
+**Automated**
+- Execute existing tests + newly added guard‑rail, RAG, and determinism tests.
+- Ensure code coverage ≥ 90 % for new modules.
+
+**Manual**
+- Use the FastAPI `/conversations/{conv_id}/messages` endpoint for end‑to‑end scenarios.
+- Inspect logs for sanitisation, similarity scores, handoff flag, and deterministic LLM settings.
+- Verify `ToolGateway` raises `HTTPException(403)` for any disallowed tool name.
+
+---
+## Timeline Summary
+| Phase | Hours |
+|------|-------|
+| 1 – Guardrails | 2 |
+| 2 – Retrieval | 2 |
+| 3 – Preprocess | 1 |
+| 4 – Resolution | 4 |
+| 5 – Handoff/Escalation | 1 |
+| 6 – Graph Wiring | 2 |
+| 7 – Integration | 1 |
+| 8 – Tests & Docs | 3 |
+**Total: 16 hours**
+
+---
+*Please confirm that this updated plan meets your requirements. Once approved, I will begin the implementation.*

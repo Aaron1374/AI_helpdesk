@@ -49,6 +49,8 @@ export interface WorkflowState {
   escalate?: boolean;
   evidence?: unknown[];
   tool_history?: string[];
+  retrieval_score?: number;
+  sanitized_query?: string;
 }
 
 export interface TicketItem {
@@ -63,6 +65,7 @@ export interface SimilarIncident {
   title: string;
   content: string;
   status?: string;
+  similarity?: number;
 }
 
 export interface ChatMessageRecord {

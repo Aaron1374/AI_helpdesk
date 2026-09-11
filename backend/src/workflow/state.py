@@ -13,3 +13,7 @@ class AgentState(TypedDict):
     tool_history: List[str]
     status: str
     user_context: Dict[str, Any]
+    sanitized_query: str = ""
+    retrieval_score: float = 0.0
+    needs_handoff: bool = False
+    handoff_payload: Dict[str, Any] = {}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import {
   getTickets,
   getSimilarTickets,
@@ -302,6 +303,11 @@ export const EngineerDashboard: React.FC = () => {
                     {similarTickets[selectedTicket.id]?.map((sim, i) => (
                       <span key={i} style={{ marginRight: '10px', color: 'var(--teal-dark)' }}>
                         • {sim.title} ({sim.status ?? 'RESOLVED'})
+                        {typeof sim.similarity === 'number' && sim.similarity > 0 && (
+                          <small style={{ marginLeft: '4px', opacity: 0.85 }}>
+                            [Score: {(sim.similarity * 100).toFixed(1)}%]
+                          </small>
+                        )}
                       </span>
                     ))}
                   </div>
@@ -320,15 +326,14 @@ export const EngineerDashboard: React.FC = () => {
                       const isUser = msg.sender_type === 'USER';
                       const messageClass = isEngineer ? 'support' : isUser ? 'user' : 'ai';
                       const label = isEngineer ? 'Support Engineer' : isUser ? 'Employee' : 'AI Helpdesk';
+                      const displayContent = isEngineer && msg.content.startsWith('[Engineer] ')
+                        ? msg.content.replace('[Engineer] ', '')
+                        : msg.content;
 
                       return (
                         <div key={msg.id || idx} className={`message ${messageClass}`}>
                           <span className="message-label">{label}</span>
-                          <span style={{ whiteSpace: 'pre-wrap' }}>
-                            {isEngineer && msg.content.startsWith('[Engineer] ')
-                              ? msg.content.replace('[Engineer] ', '')
-                              : msg.content}
-                          </span>
+                          <MarkdownRenderer content={displayContent} />
                         </div>
                       );
                     })

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import {
   ApiError,
   createConversation,
@@ -298,15 +299,14 @@ export const EmployeePortal: React.FC = () => {
             const isUser = msg.sender_type === 'USER';
             const messageClass = isEngineer ? 'support' : isUser ? 'user' : 'ai';
             const label = isEngineer ? 'Support Engineer' : isUser ? 'You' : 'AI Helpdesk';
+            const displayContent = isEngineer && msg.content.startsWith('[Engineer] ')
+              ? msg.content.replace('[Engineer] ', '')
+              : msg.content;
 
             return (
               <div key={msg.id || idx} className={`message ${messageClass}`}>
                 <span className="message-label">{label}</span>
-                <span style={{ whiteSpace: 'pre-wrap' }}>
-                  {isEngineer && msg.content.startsWith('[Engineer] ')
-                    ? msg.content.replace('[Engineer] ', '')
-                    : msg.content}
-                </span>
+                <MarkdownRenderer content={displayContent} />
               </div>
             );
           })
@@ -421,6 +421,10 @@ function buildActivity(state?: WorkflowState): string[] {
   if (state.category) items.push(`Classified as ${formatLabel(state.category)}.`);
   if (state.tool_history?.length) items.push(`Diagnostic tools used: ${state.tool_history.join(', ')}.`);
   if (state.evidence?.length) items.push(`${state.evidence.length} evidence item(s) collected.`);
+  if (typeof state.retrieval_score === 'number') {
+    const pct = (state.retrieval_score * 100).toFixed(1);
+    items.push(`RAG retrieval score: ${pct}% (${state.retrieval_score.toFixed(3)})`);
+  }
   if (state.escalate || state.status === 'human_takeover') items.push('Escalation policy transferred the conversation to a human engineer.');
   if (state.status && state.status !== 'human_takeover') items.push(`Workflow status: ${formatLabel(state.status)}.`);
   return items;

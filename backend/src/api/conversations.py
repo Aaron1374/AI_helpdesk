@@ -262,23 +262,63 @@ async def add_message(conversation_id: str, message: MessageCreate, user: dict =
     user_msg = Message(conversation_id=conv_uuid, sender_type=SenderType.USER, content=message.content)
     db.add(user_msg)
     await db.commit()
-    
+
     # If a human took over, bypass AI completely
     if conversation.owner_type == ConversationOwner.HUMAN and user.get("role") == "employee":
         return {"messages": [], "status": "human_takeover"}
 
-    # 3. Invoke LangGraph for active AI conversations
+    # 3. Load prior conversation history from DB so the LLM has full context
+    #    for follow-up questions (multi-turn support).
+    from langchain_core.messages import HumanMessage as LCHuman, AIMessage as LCAi, SystemMessage as LCSys
+
+    history_stmt = (
+        select(Message)
+        .where(Message.conversation_id == conv_uuid)
+        .order_by(Message.created_at.asc())
+    )
+    history_res = await db.execute(history_stmt)
+    prior_messages = history_res.scalars().all()
+
+    lc_history = []
+    for m in prior_messages:
+        # Skip the user message we just inserted above (it becomes state["input"])
+        if m.id == user_msg.id:
+            continue
+        if m.sender_type == SenderType.USER:
+            lc_history.append(LCHuman(content=m.content))
+        elif m.sender_type == SenderType.AI:
+            lc_history.append(LCAi(content=m.content))
+        # SYSTEM / engineer messages are skipped — they are not part of the AI context
+
+    # 4. Invoke LangGraph for active AI conversations
     workflow_status = "human_takeover" if conversation.owner_type == ConversationOwner.HUMAN else conversation.status.value
-    initial_state = {"input": message.content, "messages": [], "evidence": [], "tool_history": [], "user_context": user, "status": workflow_status}
+    initial_state = {
+        "input": message.content,
+        "messages": lc_history,          # ← full prior history injected here
+        "evidence": [],
+        "tool_history": [],
+        "user_context": user,
+        "status": workflow_status,
+        "sanitized_query": "",
+        "retrieval_score": 0.0,
+        "needs_handoff": False,
+        "needs_clarification": False,
+        "escalate": False,
+        "category": "",
+        "handoff_payload": {},
+    }
     final_state = await graph_app.ainvoke(initial_state)
 
+    # 5. Only save and return NEW AI messages generated during this turn
+    new_messages = final_state.get("messages", [])[len(lc_history):]
     responses = []
-    for msg in final_state.get("messages", []):
-        if hasattr(msg, "content") and msg.content:
+    for msg in new_messages:
+        if isinstance(msg, LCAi):
             content = normalize_content(msg.content)
-            ai_msg = Message(conversation_id=conv_uuid, sender_type=SenderType.AI, content=content)
-            db.add(ai_msg)
-            responses.append({"sender": "AI", "content": content})
+            if content:
+                ai_msg = Message(conversation_id=conv_uuid, sender_type=SenderType.AI, content=content)
+                db.add(ai_msg)
+                responses.append({"sender": "AI", "content": content})
     
     is_escalated = (
         final_state.get("status") in {"human_takeover", "escalated"}

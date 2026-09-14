@@ -252,6 +252,7 @@ export const EngineerDashboard: React.FC = () => {
                   <div className="queue-card-title">{ticket.title}</div>
                   <div className="queue-card-footer">
                     <span className={`status-badge ${getBadgeClass(ticket.status)}`}>{ticket.status}</span>
+                    <span className={`status-badge badge-${ticket.priority?.toLowerCase() || 'medium'}`} style={{marginLeft: '4px'}}>{ticket.priority || 'MEDIUM'}</span>
                     <span>{ticket.conversation_id ? 'Chat active' : 'No chat'}</span>
                   </div>
                 </div>
@@ -270,6 +271,11 @@ export const EngineerDashboard: React.FC = () => {
                       Ticket ID: <code>{selectedTicket.id.slice(0, 8)}</code> • Conversation:{' '}
                       <code>{selectedTicket.conversation_id ? selectedTicket.conversation_id.slice(0, 8) : 'None'}</code>
                     </div>
+                    {selectedTicket.priority_rationale && (
+                      <div className="console-meta" style={{ marginTop: '6px', color: 'var(--text-light)' }}>
+                        <strong>AI Rationale:</strong> {selectedTicket.priority_rationale}
+                      </div>
+                    )}
                   </div>
                   <div className="console-actions">
                     <span className={`status-badge ${getBadgeClass(selectedTicket.status)}`}>

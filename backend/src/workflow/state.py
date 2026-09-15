@@ -13,9 +13,9 @@ class AgentState(TypedDict):
     out_of_scope: bool
     retrieval_score: float
     category: str
+    priority: str
+    priority_rationale: str
     evidence: List[dict]
     tool_history: List[str]
     status: str
     user_context: Dict[str, Any]
-
-

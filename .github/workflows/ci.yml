@@ -1,0 +1,117 @@
+name: Helpdesk CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Run Pytest (Unit & API)
+      run: |
+        cd backend
+        pytest tests/
+        
+    - name: Security Scan (Bandit)
+      run: |
+        cd backend
+        bandit -r src/
+
+  frontend-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+        
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+        
+    - name: Run Linter
+      run: |
+        cd frontend
+        npm run lint
+
+    - name: Install Playwright Browsers
+      run: |
+        cd frontend
+        npx playwright install --with-deps
+        
+    - name: Run E2E Tests
+      run: |
+        cd frontend
+        npx playwright test
+
+  performance-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: helpdesk_user
+          POSTGRES_PASSWORD: helpdesk_password
+          POSTGRES_DB: helpdesk_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+        
+    - name: Run Alembic Migrations
+      run: |
+        cd backend
+        alembic upgrade head
+      env:
+        DATABASE_URL: postgresql+asyncpg://helpdesk_user:helpdesk_password@localhost:5432/helpdesk_db
+        
+    - name: Start FastAPI Background Server
+      run: |
+        cd backend
+        uvicorn src.main:app --host 0.0.0.0 --port 8000 &
+      env:
+        DATABASE_URL: postgresql+asyncpg://helpdesk_user:helpdesk_password@localhost:5432/helpdesk_db
+        OPENAI_API_KEY: "dummy-key-for-test"
+        
+    - name: Wait for server to be ready
+      run: sleep 5
+        
+    - name: Run Locust Performance Test
+      run: |
+        cd backend
+        locust -f tests/performance/locustfile.py --headless -u 50 -r 10 -t 15s --host http://localhost:8000

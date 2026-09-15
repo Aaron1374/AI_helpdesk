@@ -61,6 +61,8 @@ export interface TicketItem {
   id: string;
   title: string;
   status: string;
+  priority: string;
+  priority_rationale?: string;
   conversation_id: string | null;
 }
 

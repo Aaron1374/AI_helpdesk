@@ -48,6 +48,12 @@ async def confirm_resolution(ticket_id: str, user: dict = Depends(get_current_us
         
     if ticket.status != TicketStatus.RESOLVED:
         raise HTTPException(status_code=400, detail="Can only confirm resolved tickets")
+    
+    if ticket.created_by != user.get("username"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only the ticket owner can confirm resolution",
+        )
         
     await TicketService.update_status(db, ticket, TicketStatus.CLOSED, changed_by=user.get("username"))
     return {"status": "success"}

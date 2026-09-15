@@ -16,6 +16,12 @@ class TicketStatus(str, enum.Enum):
     CLOSED = "CLOSED"
     ESCALATED = "ESCALATED"
 
+class TicketPriority(str, enum.Enum):
+    CRITICAL = "CRITICAL"
+    HIGH = "HIGH"
+    MEDIUM = "MEDIUM"
+    LOW = "LOW"
+
 class Ticket(Base):
     __tablename__ = "tickets"
 
@@ -23,11 +29,13 @@ class Ticket(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     conversation_id = Column(UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=True)
     status = Column(Enum(TicketStatus), default=TicketStatus.NEW, nullable=False)
+    priority = Column(Enum(TicketPriority), default=TicketPriority.MEDIUM, nullable=False)
     category = Column(String, nullable=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
     embedding = Column(Vector(1536), nullable=True)
     department = Column(String, nullable=True)
+    priority_rationale = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

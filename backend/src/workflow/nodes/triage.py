@@ -43,6 +43,9 @@ def preprocess_node(state: AgentState):
 clarify_node = preprocess_node
 
 
+import json
+from src.core.llm import get_chat_model
+
 ALLOWED_CATEGORIES = {
     "access",
     "network",
@@ -53,9 +56,20 @@ ALLOWED_CATEGORIES = {
     "application",
 }
 
+ALLOWED_PRIORITIES = {
+    "critical",
+    "high",
+    "medium",
+    "low",
+}
+
 def classify_node(state: AgentState):
     text = state.get("sanitized_query") or state.get("input", "")
     llm = get_chat_model()
+
+    cat = "general_support"
+    priority = "medium"
+    rationale = "Default fallback applied."
 
     if llm:
         try:
@@ -64,20 +78,58 @@ def classify_node(state: AgentState):
                     content=(
                         "Classify the IT issue into exactly ONE of these categories:\n"
                         "Access, Network, Hardware, Software, Email, Security, Application.\n\n"
-                        "Reply with ONLY the category name."
+                        "Also assign a priority (CRITICAL, HIGH, MEDIUM, LOW) based on these rules:\n"
+                        "- CRITICAL: Security incidents, complete work stoppage affecting multiple users.\n"
+                        "- HIGH: Single user completely blocked from working.\n"
+                        "- MEDIUM: User impacted but has a workaround or it's not urgent.\n"
+                        "- LOW: Minor inconvenience, cosmetic, or a general request.\n\n"
+                        "Return ONLY a JSON object with keys: 'category', 'priority', and 'rationale' (a short explanation)."
                     )
                 ),
                 HumanMessage(content=text),
             ]
 
             res = llm.invoke(prompt)
-            cat = res.content.strip().lower()
-
-            if cat in ALLOWED_CATEGORIES:
-                return {"category": cat}
+            # Try to parse JSON from the response
+            content = res.content.strip()
+            # Clean up markdown JSON blocks if present
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.startswith("```"):
+                content = content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+            
+            parsed = json.loads(content)
+            
+            c = parsed.get("category", "").strip().lower()
+            if c in ALLOWED_CATEGORIES:
+                cat = c
+                
+            p = parsed.get("priority", "").strip().lower()
+            if p in ALLOWED_PRIORITIES:
+                priority = p
+                
+            r = parsed.get("rationale", "").strip()
+            if r:
+                rationale = r
 
         except Exception:
-            pass
+            # Fallback keyword logic for priority
+            text_lower = text.lower()
+            if any(k in text_lower for k in ["malware", "phishing", "security", "breach", "outage"]):
+                priority = "critical"
+                rationale = "Critical keyword detected."
+            elif any(k in text_lower for k in ["locked out", "won't boot", "can't login", "bsod", "blocked"]):
+                priority = "high"
+                rationale = "High priority keyword detected."
+            elif any(k in text_lower for k in ["how do i", "request"]):
+                priority = "low"
+                rationale = "Low priority keyword detected."
 
-    return {"category": "general_support"}
-
+    return {
+        "category": cat,
+        "priority": priority.upper(),
+        "priority_rationale": rationale
+    }

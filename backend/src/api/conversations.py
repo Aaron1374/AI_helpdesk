@@ -321,6 +321,8 @@ async def add_message(conversation_id: str, message: MessageCreate, user: dict =
                 title=f"[{cat}] {title_snippet}",
                 description=message.content,
                 category=cat,
+                priority=final_state.get("priority", "MEDIUM").upper(),
+                priority_rationale=final_state.get("priority_rationale"),
                 status=TicketStatus.ESCALATED,
                 department=user.get("department"),
             )

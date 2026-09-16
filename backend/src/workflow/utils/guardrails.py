@@ -1,6 +1,9 @@
 import re
 import json
 from typing import List, Dict, Any, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 def sanitize_input(text: str) -> str:
     """
@@ -245,9 +248,11 @@ def is_it_support_query(query: str, use_llm: bool = True) -> bool:
                     return False
                 if "IN_SCOPE" in verdict:
                     return True
-        except Exception:
-            # Fall back to heuristic keyword matching
-            pass
+        except Exception as exc:
+            logger.warning(
+                "LLM IT-scope classification failed; using heuristic fallback: %s",
+                exc,
+            )
 
     # Heuristic fallback: check for any IT keyword match
     for kw in _IT_KEYWORDS:

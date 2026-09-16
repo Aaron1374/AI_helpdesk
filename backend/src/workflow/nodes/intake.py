@@ -1,6 +1,8 @@
 from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from src.core.llm import get_chat_model
+import logging
+logger = logging.getLogger(__name__)
 
 def intake_node(state: AgentState):
     return {"input": state.get("input", "")}
@@ -50,9 +52,11 @@ def injection_pre_check_node(state: AgentState):
             if verdict == "SAFE":
                 return {"escalate": False}
 
-        except Exception:
-            # Fall back to deterministic checks below
-            pass
+        except Exception as exc:
+            logger.warning(
+                "LLM injection check failed; using deterministic fallback: %s",
+                exc,
+            )
 
     # Deterministic fallback
     injection_patterns = [

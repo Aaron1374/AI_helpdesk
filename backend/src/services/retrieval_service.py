@@ -109,8 +109,8 @@ class RetrievalService:
     @staticmethod
     def generate_ticket_embedding(
     title: str,
-        description: str,
-        category: str = None,
+    description: str,
+    category: str = None,
     ) -> List[float]:
         """
         Generate an embedding representing the ticket/incident.

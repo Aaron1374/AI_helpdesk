@@ -26,7 +26,7 @@ def test_ai_does_not_invent_system_state():
     }
     
     mock_llm = MagicMock()
-    mock_llm.invoke.return_value = MagicMock(content="VPN diagnostic result: connected. Resolved.")
+    mock_llm.invoke.return_value = MagicMock(content="VPN diagnostic status: connected. Resolved.")
     
     with patch("src.workflow.nodes.resolution.get_chat_model", return_value=mock_llm):
         result_valid = resolve_node(state_with_evidence)

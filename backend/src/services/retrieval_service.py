@@ -64,8 +64,12 @@ class RetrievalService:
                 scores.append(sim_score)
                 filtered.append({
                     "type": "knowledge",
+                    "document_id": str(doc.document_id) if doc.document_id else None,
+                    "chunk_index": doc.chunk_index if doc.chunk_index is not None else 0,
                     "title": doc.title,
                     "content": doc.content,
+                    "metadata": doc.metadata_,
+                    "department": doc.department,
                     "score": sim_score
                 })
         except Exception as e:
@@ -154,7 +158,17 @@ class RetrievalService:
             or_(KnowledgeDocument.department == user_department, KnowledgeDocument.department == None)
         )
         res = await db.execute(stmt)
-        docs = res.scalars().all()
+        docs = []
+        if hasattr(res, "scalars"):
+            scalars_res = res.scalars()
+            if hasattr(scalars_res, "__await__"):
+                scalars_res = await scalars_res
+            if hasattr(scalars_res, "all"):
+                all_res = scalars_res.all()
+                if hasattr(all_res, "__await__"):
+                    all_res = await all_res
+                if isinstance(all_res, (list, tuple)):
+                    docs = all_res
 
         scored_docs = []
         for doc in docs:
@@ -167,8 +181,12 @@ class RetrievalService:
                 match_ratio = min(0.92, 0.72 + (total_matches * 0.04))
                 scored_docs.append({
                     "type": "knowledge",
+                    "document_id": str(doc.document_id) if doc.document_id else None,
+                    "chunk_index": doc.chunk_index if doc.chunk_index is not None else 0,
                     "title": doc.title,
                     "content": doc.content,
+                    "metadata": doc.metadata_,
+                    "department": doc.department,
                     "score": match_ratio
                 })
 

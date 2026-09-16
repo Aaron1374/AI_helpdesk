@@ -575,15 +575,19 @@ function buildActivity(state?: WorkflowState): string[] {
     for (const item of state.evidence) {
       if (item && typeof item === 'object' && Array.isArray((item as any).documents)) {
         for (const doc of (item as any).documents) {
-          if (doc?.title && !kbTitles.includes(doc.title)) {
+          if (doc?.title) {
+            const chunkLabel = (doc.chunk_index !== undefined && doc.chunk_index !== null) ? ` [Chunk ${doc.chunk_index}]` : '';
             const scoreLabel = doc.score ? ` (Score: ${(doc.score * 100).toFixed(1)}%)` : '';
-            kbTitles.push(`"${doc.title}"${scoreLabel}`);
+            const entry = `"${doc.title}"${chunkLabel}${scoreLabel}`;
+            if (!kbTitles.includes(entry)) {
+              kbTitles.push(entry);
+            }
           }
         }
       }
     }
     if (kbTitles.length > 0) {
-      items.push(`Referenced KB Articles: ${kbTitles.join(' | ')}`);
+      items.push(`Referenced KB Articles & Chunks: ${kbTitles.join(' | ')}`);
     }
   }
 

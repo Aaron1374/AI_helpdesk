@@ -33,7 +33,7 @@ class Ticket(Base):
     category = Column(String, nullable=True)
     title = Column(String, nullable=False)
     description = Column(String, nullable=False)
-    embedding = Column(Vector(1536), nullable=True)
+    embedding = Column(Vector(3072), nullable=True)
     department = Column(String, nullable=True)
     priority_rationale = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

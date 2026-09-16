@@ -1,3 +1,4 @@
+from langchain_core.runnables import RunnableConfig
 import json
 import logging
 from src.workflow.state import AgentState
@@ -5,7 +6,7 @@ from langchain_core.messages import AIMessage
 
 logger = logging.getLogger(__name__)
 
-def handoff_node(state: AgentState):
+def handoff_node(state: AgentState, config: RunnableConfig = None,):
     msgs = list(state.get("messages", []))
     evidence = list(state.get("evidence", []))
     query = state.get("sanitized_query") or state.get("input", "")
@@ -36,5 +37,5 @@ def handoff_node(state: AgentState):
 # Alias for backward compatibility with graph wiring
 escalate_node = handoff_node
 
-def human_node(state: AgentState):
+def human_node(state: AgentState, config: RunnableConfig = None,):
     return {"status": "human_takeover"}

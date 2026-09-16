@@ -1,3 +1,4 @@
+from langchain_core.runnables import RunnableConfig
 import json
 import logging
 from typing import Dict, Any
@@ -28,7 +29,7 @@ def device_check(target_id: str) -> str:
 
 tools = [vpn_check, device_check]
 
-def diagnose_node(state: AgentState):
+def diagnose_node(state: AgentState, config: RunnableConfig = None,):
     evidence = list(state.get("evidence", []))
     tool_history = list(state.get("tool_history", []))
     user_context = state.get("user_context", {}) or {}
@@ -57,7 +58,7 @@ def diagnose_node(state: AgentState):
         prompt.extend(messages)
         
         try:
-            response = llm_with_tools.invoke(prompt)
+            response = llm_with_tools.invoke(prompt, config=config)
             if hasattr(response, "tool_calls") and response.tool_calls:
                 for tool_call in response.tool_calls:
                     t_name = tool_call["name"]
@@ -85,7 +86,7 @@ def diagnose_node(state: AgentState):
     return {"evidence": evidence, "tool_history": tool_history}
 
 
-def resolve_node(state: AgentState):
+def resolve_node(state: AgentState, config: RunnableConfig = None,):
     evidence = list(state.get("evidence", []))
     sanitized_query = state.get("sanitized_query") or state.get("input", "")
     retrieval_score = float(state.get("retrieval_score", 0.0))
@@ -97,7 +98,7 @@ def resolve_node(state: AgentState):
     # 1. Similarity Threshold Enforcement (Cutoff = 0.72)
     if retrieval_score < SIMILARITY_THRESHOLD:
         # Check if the query is even IT-related before wasting engineer time
-        if not is_it_support_query(sanitized_query):
+        if not is_it_support_query(sanitized_query, config=config):
             logger.info(f"Query '{sanitized_query}' is out of scope for IT support (score={retrieval_score:.4f}).")
             return {
                 "out_of_scope": True,
@@ -153,7 +154,7 @@ def resolve_node(state: AgentState):
         user_msg = f"Issue: {sanitized_query}\nEvidence: {json.dumps(evidence, default=str)}"
         prompt = [SystemMessage(content=system_msg), HumanMessage(content=user_msg)]
 
-        response = llm.invoke(prompt)
+        response = llm.invoke(prompt, config=config)
         answer_text = response.content if hasattr(response, "content") else str(response)
 
         # 4. Guardrail Grounding Check
@@ -184,5 +185,5 @@ def resolve_node(state: AgentState):
         }
 
 
-def verify_node(state: AgentState):
+def verify_node(state: AgentState, config: RunnableConfig = None,):
     return {"status": state.get("status", "resolved")}

@@ -1,13 +1,14 @@
+from langchain_core.runnables import RunnableConfig
 from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from src.core.llm import get_chat_model
 import logging
 logger = logging.getLogger(__name__)
 
-def intake_node(state: AgentState):
+def intake_node(state: AgentState, config: RunnableConfig = None,):
     return {"input": state.get("input", "")}
 
-def injection_pre_check_node(state: AgentState):
+def injection_pre_check_node(state: AgentState, config: RunnableConfig = None,):
     text = (state.get("input") or "").strip()
 
     if not text:
@@ -35,7 +36,7 @@ def injection_pre_check_node(state: AgentState):
                 HumanMessage(content=text),
             ]
 
-            res = llm.invoke(prompt)
+            res = llm.invoke(prompt, config=config)
 
             verdict = res.content.strip().upper()
 

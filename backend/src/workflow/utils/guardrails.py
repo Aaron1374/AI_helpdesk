@@ -1,6 +1,7 @@
 import re
 import json
 from typing import List, Dict, Any, Optional
+from langchain_core.runnables import RunnableConfig
 import logging
 
 logger = logging.getLogger(__name__)
@@ -201,7 +202,7 @@ _IT_KEYWORDS = {
     "active directory", "group policy", "driver",
 }
 
-def is_it_support_query(query: str, use_llm: bool = True) -> bool:
+def is_it_support_query(query: str, use_llm: bool = True, config: RunnableConfig = None,) -> bool:
     """
     Determine whether the user's query is within the scope of Enterprise IT support.
     Uses LLM triage gatekeeper if available, falling back to keyword heuristics.
@@ -242,7 +243,7 @@ def is_it_support_query(query: str, use_llm: bool = True) -> bool:
                     "Answer IN_SCOPE only for genuine enterprise IT issues and troubleshooting requests.\n"
                     "Reply with ONLY 'IN_SCOPE' or 'OUT_OF_SCOPE'."
                 )
-                res = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=q_clean)])
+                res = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=q_clean)], config=config)
                 verdict = res.content.strip().upper() if hasattr(res, "content") else str(res).strip().upper()
                 if "OUT_OF_SCOPE" in verdict:
                     return False

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import uuid
 from src.workflow.graph import app as graph_app
+from src.core.observability import get_langchain_config
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
@@ -273,23 +274,35 @@ async def add_message(conversation_id: str, message: MessageCreate, user: dict =
     # 3. Invoke LangGraph for active AI conversations
     workflow_status = "human_takeover" if conversation.owner_type == ConversationOwner.HUMAN else conversation.status.value
     initial_state = {
-            "input": message.content,
-            "sanitized_query": "",
-            "messages": [],
-            "evidence": [],
-            "tool_history": [],
-            "user_context": user,
-            "status": workflow_status,
-            "retrieval_score": 0.0,
-            "needs_handoff": False,
-            "needs_clarification": False,
-            "escalate": False,
-            "out_of_scope": False,
-            "category": "",
-        }
+        "input": message.content,
+        "sanitized_query": "",
+        "messages": [],
+        "evidence": [],
+        "tool_history": [],
+        "user_context": user,
+        "status": workflow_status,
+        "retrieval_score": 0.0,
+        "needs_handoff": False,
+        "needs_clarification": False,
+        "escalate": False,
+        "out_of_scope": False,
+        "category": "",
+    }
 
+    lf_config = get_langchain_config(
+        conversation_id=str(conv_uuid),
+        user_email=user.get("username"),
+        extra_metadata={
+            "department": user.get("department"),
+            "role": user.get("role"),
+            "owner_type": conversation.owner_type.value,
+        },
+    )
 
-    final_state = await graph_app.ainvoke(initial_state)
+    final_state = await graph_app.ainvoke(
+        initial_state,
+        config=lf_config,
+    )
 
     responses = []
     for msg in final_state.get("messages", []):

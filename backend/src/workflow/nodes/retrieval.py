@@ -1,3 +1,4 @@
+from langchain_core.runnables import RunnableConfig
 from src.workflow.state import AgentState
 from src.services.retrieval_service import RetrievalService
 from src.core.db import AsyncSessionLocal
@@ -5,7 +6,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def retrieve_node(state: AgentState):
+async def retrieve_node(state: AgentState, config: RunnableConfig = None,):
     """Async retrieval node — runs on the same event loop as FastAPI/LangGraph."""
     query = state.get("sanitized_query") or state.get("input", "")
     user_context = state.get("user_context", {}) or {}

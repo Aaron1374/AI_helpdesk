@@ -1,10 +1,11 @@
+from langchain_core.runnables import RunnableConfig
 from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from src.core.llm import get_chat_model
 
 from src.workflow.utils.guardrails import sanitize_input, is_it_support_query
 
-def preprocess_node(state: AgentState):
+def preprocess_node(state: AgentState, config: RunnableConfig = None,):
     raw_text = (state.get("input", "") or "").strip()
     
     # Only request clarification if the user only entered a brief greeting or empty string
@@ -18,7 +19,7 @@ def preprocess_node(state: AgentState):
     sanitized = sanitize_input(raw_text)
     
     # Early out-of-scope check: reject non-IT queries without running classification or vector search
-    if not is_it_support_query(sanitized):
+    if not is_it_support_query(sanitized, config=config):
         return {
             "needs_clarification": False,
             "out_of_scope": True,
@@ -63,7 +64,7 @@ ALLOWED_PRIORITIES = {
     "low",
 }
 
-def classify_node(state: AgentState):
+def classify_node(state: AgentState, config: RunnableConfig = None,):
     text = state.get("sanitized_query") or state.get("input", "")
     llm = get_chat_model()
 
@@ -89,7 +90,7 @@ def classify_node(state: AgentState):
                 HumanMessage(content=text),
             ]
 
-            res = llm.invoke(prompt)
+            res = llm.invoke(prompt, config=config)
             # Try to parse JSON from the response
             content = res.content.strip()
             # Clean up markdown JSON blocks if present

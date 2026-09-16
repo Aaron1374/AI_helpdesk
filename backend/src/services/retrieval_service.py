@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 from typing import List, Dict, Any, Tuple
 
 class RetrievalService:
-    @staticmethod
+    @classmethod
     async def get_similar_documents(
+        cls,
         db: AsyncSession, 
         query_text: str, 
         user_department: str = None,
@@ -31,13 +32,17 @@ class RetrievalService:
             logger.warning(f"Could not initialize embeddings: {e}")
                 
         if not embeddings_model:
-            return [], 0.0
+            logger.info("Embeddings model unavailable; falling back to keyword search.")
+            return await cls._keyword_fallback(db, query_text, user_department, limit)
 
+        query_embedding = None
         try:
             query_embedding = embeddings_model.embed_query(query_text)
         except Exception as e:
-            logger.warning(f"Failed to generate embedding: {e}")
-            return [], 0.0
+            logger.warning(f"Failed to generate embedding: {e}. Falling back to keyword search.")
+
+        if not query_embedding:
+            return await cls._keyword_fallback(db, query_text, user_department, limit)
 
         scores: List[float] = []
         filtered = []
@@ -92,6 +97,13 @@ class RetrievalService:
             logger.warning(f"Ticket retrieval error: {e}")
                 
         max_score = max(scores) if scores else 0.0
+
+        if not filtered or max_score < 0.5:
+            logger.info("Vector retrieval yielded low score; running keyword fallback check.")
+            kw_docs, kw_score = await cls._keyword_fallback(db, query_text, user_department, limit)
+            if kw_score > max_score:
+                return kw_docs, kw_score
+
         return filtered, max_score
 
     @staticmethod
@@ -123,3 +135,46 @@ class RetrievalService:
         return embeddings_model.embed_query(ticket_text)
 
         
+    @classmethod
+    async def _keyword_fallback(
+        cls,
+        db: AsyncSession,
+        query_text: str,
+        user_department: str = None,
+        limit: int = 5
+    ) -> Tuple[List[Dict[str, Any]], float]:
+        import re
+        words = [w.lower() for w in re.findall(r"\w+", query_text) if len(w) > 2]
+        stop_words = {"the", "and", "for", "that", "this", "with", "have", "from", "you", "are", "was", "not", "but", "what", "can", "how", "why", "did", "does", "will", "would", "could", "should", "some", "just", "about", "into", "after"}
+        keywords = [w for w in words if w not in stop_words]
+        if not keywords:
+            return [], 0.0
+
+        stmt = select(KnowledgeDocument).where(
+            or_(KnowledgeDocument.department == user_department, KnowledgeDocument.department == None)
+        )
+        res = await db.execute(stmt)
+        docs = res.scalars().all()
+
+        scored_docs = []
+        for doc in docs:
+            t_lower = doc.title.lower()
+            c_lower = doc.content.lower()
+            title_matches = sum(1 for kw in keywords if kw in t_lower)
+            content_matches = sum(1 for kw in keywords if kw in c_lower)
+            total_matches = title_matches * 3 + content_matches
+            if total_matches > 0:
+                match_ratio = min(0.92, 0.72 + (total_matches * 0.04))
+                scored_docs.append({
+                    "type": "knowledge",
+                    "title": doc.title,
+                    "content": doc.content,
+                    "score": match_ratio
+                })
+
+        scored_docs.sort(key=lambda d: d["score"], reverse=True)
+        top_docs = scored_docs[:limit]
+        max_score = top_docs[0]["score"] if top_docs else 0.0
+        return top_docs, max_score
+
+

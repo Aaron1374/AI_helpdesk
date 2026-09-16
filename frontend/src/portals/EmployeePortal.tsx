@@ -551,15 +551,19 @@ function buildActivity(state?: WorkflowState): string[] {
     ];
   }
 
-  const items: string[] = ['Request processed by AI RAG workflow.'];
+  const items: string[] = ['Request evaluated by AI Helpdesk workflow.'];
 
   if (state.category) {
     items.push(`Categorized as: ${formatLabel(state.category)}`);
   }
 
-  if (typeof state.retrieval_score === 'number' && state.retrieval_score > 0) {
-    const pct = (state.retrieval_score * 100).toFixed(1);
-    items.push(`Retrieval Similarity Score: ${pct}% (Cutoff: 72.0%)`);
+  if (typeof state.retrieval_score === 'number') {
+    if (state.retrieval_score > 0) {
+      const pct = (state.retrieval_score * 100).toFixed(1);
+      items.push(`RAG Retrieval Similarity Score: ${pct}% (Cutoff: 72.0%)`);
+    } else {
+      items.push(`RAG Retrieval Similarity Score: 0.0% — Low confidence threshold triggered.`);
+    }
   }
 
   if (state.tool_history && state.tool_history.length > 0) {

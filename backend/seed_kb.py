@@ -1,30 +1,9 @@
 """
-seed_kb.py — Knowledge Base Population Script
-==============================================
-Reads articles from kb_articles.json, generates vector embeddings,
-and upserts them into the knowledge_documents table.
-
-USAGE
------
-Run from the backend/ directory:
-
-  # With Docker running (recommended for teams):
-  docker-compose exec backend python seed_kb.py
-
-  # Or locally (requires a .env file and running DB):
-  python seed_kb.py
-
-OPTIONS
--------
-  --dry-run     Print what would be inserted without writing to the DB.
-  --reset       Delete all existing KB documents before seeding.
-  --file PATH   Path to the articles JSON file (default: kb_articles.json).
-
-ADDING NEW ARTICLES
--------------------
-Edit kb_articles.json — no Python knowledge required.
-Then re-run this script. Existing articles (matched by title) will be
-updated; new ones will be inserted.
+seed_kb.py — Knowledge Base Population Script (Chunk-Aware)
+==============================================================================
+Reads articles from kb_articles.json, chunks them using section-aware chunker,
+generates 3072-dimensional vector embeddings for each chunk with rate-limit retries/batching,
+and populates the knowledge_documents table.
 """
 
 import argparse
@@ -32,6 +11,8 @@ import asyncio
 import json
 import os
 import sys
+import time
+import uuid
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -42,7 +23,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent.parent / ".env")  # load root .env
 
-# Set fallback DATABASE_URL before importing src so src.core.db doesn't crash locally
 if not os.getenv("DATABASE_URL"):
     os.environ["DATABASE_URL"] = "postgresql+asyncpg://helpdesk_user:helpdesk_password@localhost:5432/helpdesk_db"
 
@@ -50,6 +30,7 @@ from sqlalchemy import select, delete
 from src.core.db import AsyncSessionLocal
 from src.models.knowledge import KnowledgeDocument
 from src.core.llm import get_embedding_model
+from src.rag.chunker import chunk_article
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -67,7 +48,6 @@ def load_articles(filepath: str) -> list[dict]:
 
     articles = []
     for item in raw:
-        # Skip comment/instruction objects (they have '_comment' or '_fields' keys)
         if "_comment" in item or "_fields" in item:
             continue
         if not item.get("title") or not item.get("content"):
@@ -78,26 +58,87 @@ def load_articles(filepath: str) -> list[dict]:
     return articles
 
 
-def generate_embeddings(articles: list[dict]) -> list[list[float]]:
-    """Batch-generate embeddings for all article content strings."""
+def prepare_chunks(articles: list[dict]) -> tuple[list[dict], list[str]]:
+    """
+    Chunk articles using chunker.py and assign parent document_id.
+    Returns (chunk_records, list_of_content_strings_for_embedding).
+    """
+    chunk_records = []
+    content_strings = []
+
+    for article in articles:
+        doc_id = uuid.uuid4()
+        title = article["title"]
+        content = article["content"]
+        department = article.get("department")
+        metadata = article.get("metadata", {})
+
+        chunks = chunk_article(title, content)
+        for chunk_data in chunks:
+            c_text = chunk_data["content"]
+            record = {
+                "id": uuid.uuid4(),
+                "document_id": doc_id,
+                "chunk_index": chunk_data["chunk_index"],
+                "title": title,
+                "content": c_text,
+                "department": department,
+                "metadata_": metadata,
+            }
+            chunk_records.append(record)
+            content_strings.append(c_text)
+
+    return chunk_records, content_strings
+
+
+def generate_embeddings(content_strings: list[str], batch_size: int = 25) -> list[list[float]]:
+    """Batch-generate 3072-dim embeddings for chunk content strings with rate-limit retries."""
     model = get_embedding_model()
     if not model:
         print("[ERROR] No embedding model configured.")
         print("        Set OPENAI_API_KEY (or GOOGLE_API_KEY) in your .env file.")
         sys.exit(1)
 
-    contents = [a["content"] for a in articles]
-    print(f"  Generating embeddings for {len(contents)} article(s)...")
-    embeddings = model.embed_documents(contents)
-    print(f"  Done. Each embedding has {len(embeddings[0])} dimensions.")
-    return embeddings
+    print(f"  Generating embeddings for {len(content_strings)} chunk(s) in batches of {batch_size}...")
+    all_embeddings = []
+
+    for i in range(0, len(content_strings), batch_size):
+        batch = content_strings[i:i + batch_size]
+        batch_num = (i // batch_size) + 1
+        total_batches = (len(content_strings) + batch_size - 1) // batch_size
+        print(f"    - Processing batch {batch_num}/{total_batches} ({len(batch)} chunks)...")
+
+        max_retries = 5
+        retry_delay = 16.0
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                batch_embeddings = model.embed_documents(batch)
+                all_embeddings.extend(batch_embeddings)
+                break
+            except Exception as e:
+                err_msg = str(e)
+                if "RESOURCE_EXHAUSTED" in err_msg or "429" in err_msg:
+                    print(f"      [RATE LIMIT] Rate limited on batch {batch_num}. Retrying in {retry_delay:.1f}s (Attempt {attempt}/{max_retries})...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 1.5
+                else:
+                    print(f"      [ERROR] Embedding batch {batch_num} failed: {e}")
+                    raise e
+
+        # Small pause between successful batches
+        if i + batch_size < len(content_strings):
+            time.sleep(1.0)
+
+    print(f"  Done. Generated {len(all_embeddings)} embedding(s) of {len(all_embeddings[0])} dimensions.")
+    return all_embeddings
 
 
 # ---------------------------------------------------------------------------
 # Core seeding logic
 # ---------------------------------------------------------------------------
 
-async def seed(articles: list[dict], embeddings: list[list[float]], reset: bool, dry_run: bool):
+async def seed(chunk_records: list[dict], embeddings: list[list[float]], reset: bool, dry_run: bool):
     async with AsyncSessionLocal() as db:
 
         if reset and not dry_run:
@@ -105,49 +146,31 @@ async def seed(articles: list[dict], embeddings: list[list[float]], reset: bool,
             await db.commit()
             print("  [RESET] Cleared all existing knowledge documents.")
 
-        inserted = 0
-        updated = 0
+        if dry_run:
+            print(f"\n  [DRY RUN] Would insert {len(chunk_records)} chunk(s) into database:")
+            for rec in chunk_records[:5]:
+                print(f"    - Doc ID {rec['document_id']} | Chunk {rec['chunk_index']} | Title: '{rec['title']}' ({len(rec['content'])} chars)")
+            if len(chunk_records) > 5:
+                print(f"    ... and {len(chunk_records) - 5} more chunk(s).")
+            return
 
-        for article, embedding in zip(articles, embeddings):
-            title = article["title"]
-            content = article["content"]
-            department = article.get("department")  # None = global
-            metadata = article.get("metadata", {})
+        print(f"\n  Inserting {len(chunk_records)} chunk(s) into database...")
 
-            if dry_run:
-                dept_label = department or "ALL DEPARTMENTS"
-                print(f"  [DRY RUN] Would upsert: '{title}' (dept: {dept_label})")
-                continue
-
-            # Check if an article with this title already exists
-            result = await db.execute(
-                select(KnowledgeDocument).where(KnowledgeDocument.title == title)
+        for rec, emb in zip(chunk_records, embeddings):
+            doc = KnowledgeDocument(
+                id=rec["id"],
+                document_id=rec["document_id"],
+                chunk_index=rec["chunk_index"],
+                title=rec["title"],
+                content=rec["content"],
+                embedding=emb,
+                department=rec["department"],
+                metadata_=rec["metadata_"],
             )
-            existing = result.scalar_one_or_none()
+            db.add(doc)
 
-            if existing:
-                existing.content = content
-                existing.embedding = embedding
-                existing.department = department
-                existing.metadata_ = metadata
-                db.add(existing)
-                updated += 1
-                print(f"  [UPDATE] '{title}'")
-            else:
-                doc = KnowledgeDocument(
-                    title=title,
-                    content=content,
-                    embedding=embedding,
-                    department=department,
-                    metadata_=metadata,
-                )
-                db.add(doc)
-                inserted += 1
-                print(f"  [INSERT] '{title}'")
-
-        if not dry_run:
-            await db.commit()
-            print(f"\n  Seeding complete. {inserted} inserted, {updated} updated.")
+        await db.commit()
+        print(f"  [SUCCESS] Database populated with {len(chunk_records)} chunks across {len(set(r['document_id'] for r in chunk_records))} unique articles.")
 
 
 # ---------------------------------------------------------------------------
@@ -155,32 +178,32 @@ async def seed(articles: list[dict], embeddings: list[list[float]], reset: bool,
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed the Knowledge Base from kb_articles.json")
-    parser.add_argument("--dry-run", action="store_true", help="Preview without writing to DB")
+    parser = argparse.ArgumentParser(description="Seed Knowledge Base Chunks from kb_articles.json")
+    parser.add_argument("--dry-run", action="store_true", help="Preview chunks without embedding or writing to DB")
     parser.add_argument("--reset", action="store_true", help="Delete all KB docs before seeding")
     parser.add_argument("--file", default="kb_articles.json", help="Path to articles JSON file")
     args = parser.parse_args()
 
-    print(f"\n{'=' * 55}")
-    print(f"  KB Seeder {'[DRY RUN] ' if args.dry_run else ''}— {args.file}")
-    print(f"{'=' * 55}\n")
+    print(f"\n{'=' * 60}")
+    print(f"  KB Chunk-Aware Seeder {'[DRY RUN] ' if args.dry_run else ''}— {args.file}")
+    print(f"{'=' * 60}\n")
 
     articles = load_articles(args.file)
-    print(f"  Loaded {len(articles)} article(s) from {args.file}.\n")
+    print(f"  Loaded {len(articles)} article(s) from {args.file}.")
 
     if not articles:
         print("  No valid articles found. Nothing to do.")
         return
 
+    chunk_records, content_strings = prepare_chunks(articles)
+    print(f"  Prepared {len(chunk_records)} chunk(s) from {len(articles)} article(s).\n")
+
     if args.dry_run:
-        # No need to call the embedding API in dry-run mode
-        for article in articles:
-            dept_label = article.get("department") or "ALL DEPARTMENTS"
-            print(f"  [DRY RUN] Would upsert: '{article['title']}' (dept: {dept_label})")
+        asyncio.run(seed(chunk_records, [], reset=args.reset, dry_run=True))
         return
 
-    embeddings = generate_embeddings(articles)
-    asyncio.run(seed(articles, embeddings, reset=args.reset, dry_run=args.dry_run))
+    embeddings = generate_embeddings(content_strings)
+    asyncio.run(seed(chunk_records, embeddings, reset=args.reset, dry_run=args.dry_run))
 
 
 if __name__ == "__main__":

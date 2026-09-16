@@ -94,3 +94,32 @@ class RetrievalService:
         max_score = max(scores) if scores else 0.0
         return filtered, max_score
 
+    @staticmethod
+    def generate_ticket_embedding(
+    title: str,
+        description: str,
+        category: str = None,
+    ) -> List[float]:
+        """
+        Generate an embedding representing the ticket/incident.
+        """
+        text_parts = [
+            title or "",
+            description or "",
+            category or "",
+        ]
+
+        ticket_text = "\n".join(
+            part.strip()
+            for part in text_parts
+            if part and part.strip()
+        )
+
+        if not ticket_text:
+            raise ValueError("Cannot generate ticket embedding from empty text")
+
+        embeddings_model = get_embedding_model()
+
+        return embeddings_model.embed_query(ticket_text)
+
+        

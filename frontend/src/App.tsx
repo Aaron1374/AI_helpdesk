@@ -4,17 +4,22 @@ import type { AuthUser } from './api/types';
 import { clearSession, getSessionUser, saveSession } from './auth/session';
 import { EmployeePortal } from './portals/EmployeePortal';
 import { EngineerDashboard } from './portals/EngineerDashboard';
+import { AdminDashboard } from './portals/AdminDashboard';
 
 export function App() {
   const [user, setUser] = useState<AuthUser | null>(() => getSessionUser());
-  const [view, setView] = useState<'employee' | 'engineer'>(() => {
+  const [view, setView] = useState<'employee' | 'engineer' | 'admin'>(() => {
     const sessionUser = getSessionUser();
-    return sessionUser && sessionUser.role !== 'employee' ? 'engineer' : 'employee';
+    if (!sessionUser) return 'employee';
+    if (sessionUser.role === 'admin') return 'admin';
+    return sessionUser.role !== 'employee' ? 'engineer' : 'employee';
   });
 
   const handleLogin = (newUser: AuthUser) => {
     setUser(newUser);
-    if (newUser.role !== 'employee') {
+    if (newUser.role === 'admin') {
+      setView('admin');
+    } else if (newUser.role !== 'employee') {
       setView('engineer');
     } else {
       setView('employee');
@@ -33,14 +38,17 @@ export function App() {
           <span>Helpdesk</span>
         </div>
         <div className="nav-actions">
-          <button
-            className={`nav-button ${view === 'employee' ? 'is-active' : ''}`}
-            onClick={() => setView('employee')}
-            aria-pressed={view === 'employee'}
-          >
-            Employee Portal
-          </button>
-          {isSupportRole && (
+          {user.role === 'employee' && (
+            <button
+              className={`nav-button ${view === 'employee' ? 'is-active' : ''}`}
+              onClick={() => setView('employee')}
+              aria-pressed={view === 'employee'}
+            >
+              Employee Portal
+            </button>
+          )}
+
+          {user.role !== 'employee' && user.role !== 'admin' && (
             <button
               className={`nav-button ${view === 'engineer' ? 'is-active' : ''}`}
               onClick={() => setView('engineer')}
@@ -50,19 +58,53 @@ export function App() {
             </button>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem', background: '#f1f5f9', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.8rem' }}>
-            <span style={{ color: '#334155', fontWeight: 600 }}>{user.email}</span>
-            <span style={{ color: '#64748b' }}>({user.role})</span>
+          {user.role === 'admin' && (
+            <button
+              className={`nav-button ${view === 'admin' ? 'is-active' : ''}`}
+              onClick={() => setView('admin')}
+              aria-pressed={view === 'admin'}
+            >
+              Admin Dashboard
+            </button>
+          )}
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              marginLeft: '0.5rem',
+              background: '#f1f5f9',
+              padding: '0.3rem 0.7rem',
+              borderRadius: '6px',
+              fontSize: '0.8rem'
+            }}
+          >
+            <span style={{ color: '#334155', fontWeight: 600 }}>
+              {user.email}
+            </span>
+            <span style={{ color: '#64748b' }}>
+              ({user.role})
+            </span>
           </div>
 
-          <button className="nav-button" onClick={() => { clearSession(); setUser(null); }}>
+          <button
+            className="nav-button"
+            onClick={() => {
+              clearSession();
+              setUser(null);
+            }}
+          >
             Sign out
           </button>
+
         </div>
       </nav>
       <div className="page-frame">
-        {view === 'employee' || !isSupportRole ? (
+        {view === 'employee' ? (
           <EmployeePortal />
+        ) : view === 'admin' ? (
+          <AdminDashboard />
         ) : (
           <EngineerDashboard />
         )}

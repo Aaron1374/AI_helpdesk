@@ -64,6 +64,7 @@ export interface TicketItem {
   priority: string;
   priority_rationale?: string;
   conversation_id: string | null;
+  category?: string | null;
 }
 
 export interface SimilarIncident {

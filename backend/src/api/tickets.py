@@ -15,7 +15,22 @@ SUPPORT_ROLES = ["engineer", "l1", "l2", "support_lead", "admin"]
 async def get_tickets(user: dict = Depends(RoleChecker(SUPPORT_ROLES)), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Ticket))
     tickets = result.scalars().all()
-    return [{"id": str(t.id), "title": t.title, "status": t.status, "priority": t.priority, "priority_rationale": t.priority_rationale, "conversation_id": str(t.conversation_id) if t.conversation_id else None} for t in tickets]
+    return [
+        {
+            "id": str(t.id),
+            "title": t.title,
+            "status": t.status.value,
+            "priority": t.priority.value,
+            "priority_rationale": t.priority_rationale,
+            "category": t.category,
+            "conversation_id": (
+                str(t.conversation_id)
+                if t.conversation_id
+                else None
+            ),
+        }
+        for t in tickets
+    ]
 
 @router.post("/{ticket_id}/resolve")
 async def resolve_ticket(ticket_id: str, user: dict = Depends(RoleChecker(SUPPORT_ROLES)), db: AsyncSession = Depends(get_db)):

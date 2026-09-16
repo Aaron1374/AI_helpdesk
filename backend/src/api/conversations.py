@@ -1,15 +1,18 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List
 from src.auth.security import RoleChecker, get_current_user
 from src.core.db import get_db
 from src.core.llm import normalize_content
+from src.services.retrieval_service import RetrievalService
 from src.models.chat import Conversation, ConversationOwner, ConversationStatus, Message, SenderType
 from src.models.user import User, UserRole
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import uuid
 from src.workflow.graph import app as graph_app
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -315,20 +318,32 @@ async def add_message(conversation_id: str, message: MessageCreate, user: dict =
         if not existing_ticket:
             cat = final_state.get("category", "General Support")
             title_snippet = message.content.strip().split("\n")[0][:50]
+            ticket_title = f"[{cat}] {title_snippet}"
+            ticket_description = message.content
+
             new_ticket = Ticket(
                 user_id=conversation.user_id,
                 conversation_id=conv_uuid,
-                title=f"[{cat}] {title_snippet}",
-                description=message.content,
+                title=ticket_title,
+                description=ticket_description,
                 category=cat,
                 priority=final_state.get("priority", "MEDIUM").upper(),
                 priority_rationale=final_state.get("priority_rationale"),
                 status=TicketStatus.ESCALATED,
                 department=user.get("department"),
             )
+
+            try:
+                new_ticket.embedding = RetrievalService.generate_ticket_embedding(
+                    title=ticket_title,
+                    description=ticket_description,
+                    category=cat,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to generate ticket embedding: {e}")
+
             db.add(new_ticket)
             await db.flush()
-
             history = TicketHistory(
                 ticket_id=new_ticket.id,
                 old_status=None,

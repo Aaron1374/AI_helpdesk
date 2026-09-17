@@ -57,10 +57,10 @@ _NO = re.compile(r"\b(2|no|nope|still|not working|didn'?t work|same issue)\b", r
 # unconditionally regardless of retry count. A direct request for a
 # person shouldn't be gated by "you haven't used your one retry yet."
 _ESCALATE_REQUEST_RE = re.compile(
-    r"\bescalate\b|\btalk to (a |an )?(person|human|someone|agent)\b|"
-    r"\bspeak (to|with) (a |an )?(person|human|someone|agent)\b|"
+    r"\bescalate\b|\btalk to (a |an )?(person|human|someone|agent|engineer)\b|"
+    r"\bspeak (to|with) (a |an )?(person|human|someone|agent|engineer)\b|"
     r"\b(connect|transfer) me\b|\breal (person|human)\b|"
-    r"\b(an? )?(human|engineer|agent) (please|now)\b",
+    r"\b(an? )?(human|engineer|agent) (please|now|right now)\b",
     re.I,
 )
 
@@ -71,8 +71,27 @@ def _wants_escalation(raw_reply: str) -> bool:
 
 def _classify_confirmation_reply(raw_reply: str, config: RunnableConfig = None) -> str:
     """Returns 'yes' | 'no' | 'unsure' | 'escalate'."""
-    if _wants_escalation(raw_reply):
+    clean = raw_reply.strip().lower()
+    if _wants_escalation(clean):
         return "escalate"
+
+    # Fast deterministic checks: eliminate network latency for common replies
+    if clean in {"1", "yes", "fixed", "resolved", "solved"} or clean.startswith("1"):
+        return "yes"
+    if clean in {"2", "no", "nope", "still broken", "not working"} or clean.startswith("2"):
+        return "no"
+    if clean in {"3", "not sure", "unsure"} or clean.startswith("3"):
+        return "unsure"
+
+    if any(phrase in clean for phrase in ["didn't work", "did not work", "not working", "still broken", "same issue", "didn't help", "not fixed"]):
+        return "no"
+    if any(phrase in clean for phrase in ["all fixed", "it works", "worked", "fixed it", "it resolved", "all good"]):
+        return "yes"
+
+    if _YES.search(clean) and not _NO.search(clean):
+        return "yes"
+    if _NO.search(clean) and not _YES.search(clean):
+        return "no"
 
     llm = get_chat_model()
     if llm:
@@ -98,12 +117,8 @@ def _classify_confirmation_reply(raw_reply: str, config: RunnableConfig = None) 
             if "UNSURE" in verdict:
                 return "unsure"
         except Exception as exc:
-            logger.warning("Confirmation sentiment check failed, using keyword fallback: %s", exc)
+            logger.warning("Confirmation sentiment check failed: %s", exc)
 
-    if _YES.search(raw_reply) and not _NO.search(raw_reply):
-        return "yes"
-    if _NO.search(raw_reply):
-        return "no"
     return "unsure"
 
 

@@ -112,8 +112,12 @@ def resolve_node(state: AgentState, config: RunnableConfig = None):
             "Only provide solutions supported by the retrieved knowledge base "
             "and diagnostic evidence. Do not invent troubleshooting steps."
         )
-        user_msg = f"Issue: {sanitized_query}\nEvidence: {json.dumps(evidence, default=str)}"
-        prompt = [SystemMessage(content=system_msg), HumanMessage(content=user_msg)]
+        messages = list(state.get("messages", []) or [])
+        prompt = [SystemMessage(content=system_msg)]
+        for m in messages:
+            if isinstance(m, (HumanMessage, AIMessage)) and getattr(m, "content", ""):
+                prompt.append(m)
+        prompt.append(HumanMessage(content=f"Current Issue Details: {sanitized_query}\nEvidence: {json.dumps(evidence, default=str)}"))
 
         response = llm.invoke(prompt, config=config)
         answer_text = response.content if hasattr(response, "content") else str(response)
@@ -140,6 +144,9 @@ _LEAK_PATTERNS = [
     r"ignore all previous instructions\b",
     r"AKIA[0-9A-Z]{16}",
     r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
+    r"\bpassword\s*[:=]\s*['\"][^\s'\"]+['\"]",
+    r"\bbearer\s+ey[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+",
+    r"\bghp_[A-Za-z0-9_]{36}\b",
 ]
 _LEAK_RE = re.compile("|".join(_LEAK_PATTERNS), re.IGNORECASE)
 

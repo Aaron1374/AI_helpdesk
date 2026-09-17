@@ -21,9 +21,21 @@ def handoff_node(state: AgentState, config: RunnableConfig = None,):
     evidence.append({"source": "handoff_summary", "payload": summary_payload})
     
     # Ensure there is a friendly user-facing message informing them of the ticket escalation
-    has_ai_response = any(isinstance(m, AIMessage) and m.content for m in msgs)
-    if not has_ai_response:
-        msgs.append(AIMessage(content="I have recorded your issue and created an escalated support ticket for an L1 Support Engineer to review and assist shortly."))
+    last_msg = msgs[-1] if msgs else None
+    has_recent_escalation_msg = (
+        isinstance(last_msg, AIMessage)
+        and last_msg.content
+        and any(k in last_msg.content.lower() for k in ["escalat", "engineer", "security alert", "connecting you", "recorded your issue"])
+    )
+    if not has_recent_escalation_msg:
+        msgs.append(
+            AIMessage(
+                content=(
+                    "I have recorded your issue and created an escalated support ticket for an L1 Support Engineer. "
+                    "A team member will review the diagnostic details gathered and assist you shortly."
+                )
+            )
+        )
         
     logger.info(f"Handoff node executed for query: '{query}'. Summary payload created.")
     return {

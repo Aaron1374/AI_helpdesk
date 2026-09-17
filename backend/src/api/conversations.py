@@ -642,6 +642,27 @@ async def add_message(
         }
 
     # 3. Invoke LangGraph for active AI conversations
+    from src.models.ticket import (
+        Ticket,
+        TicketStatus,
+        TicketHistory,
+        AuditEvent,
+    )
+    from src.core.logging import trace_id_ctx_var
+
+    # Check if a ticket already exists for this conversation to retain classification metadata across turns
+    t_check_stmt = select(Ticket).where(Ticket.conversation_id == conv_uuid)
+    t_check_res = await db.execute(t_check_stmt)
+    existing_conv_ticket = t_check_res.scalar_one_or_none()
+
+    prior_category = (existing_conv_ticket.category or "") if existing_conv_ticket else ""
+    prior_priority = (
+        (existing_conv_ticket.priority.value if hasattr(existing_conv_ticket.priority, "value") else str(existing_conv_ticket.priority))
+        if (existing_conv_ticket and existing_conv_ticket.priority)
+        else ""
+    )
+    prior_rationale = (existing_conv_ticket.priority_rationale or "") if existing_conv_ticket else ""
+
     workflow_status = (
         "human_takeover"
         if conversation.owner_type == ConversationOwner.HUMAN
@@ -662,7 +683,9 @@ async def add_message(
         "needs_clarification": False,
         "escalate": False,
         "out_of_scope": False,
-        "category": "",
+        "category": prior_category,
+        "priority": prior_priority,
+        "priority_rationale": prior_rationale,
         "awaiting_confirmation_reply": (
             awaiting_confirmation_reply
         ),
@@ -860,11 +883,12 @@ async def add_message(
 
         existing_ticket = t_res.scalar_one_or_none()
 
+        active_ticket = existing_ticket
         if not existing_ticket:
             cat = final_state.get(
                 "category",
                 "General Support",
-            )
+            ) or "General Support"
 
             # Preserve the original incident rather than using
             # the current confirmation/reply as ticket content.
@@ -918,8 +942,8 @@ async def add_message(
                 )
 
             db.add(new_ticket)
-
             await db.flush()
+            active_ticket = new_ticket
 
             history = TicketHistory(
                 ticket_id=new_ticket.id,
@@ -927,7 +951,6 @@ async def add_message(
                 new_status=TicketStatus.ESCALATED,
                 changed_by="AI Workflow",
             )
-
             db.add(history)
 
             audit = AuditEvent(
@@ -942,8 +965,81 @@ async def add_message(
                     "conversation_id": str(conv_uuid),
                 },
             )
-
             db.add(audit)
+        else:
+            if existing_ticket.status != TicketStatus.ESCALATED:
+                old_st = existing_ticket.status
+                existing_ticket.status = TicketStatus.ESCALATED
+                db.add(existing_ticket)
+                db.add(
+                    TicketHistory(
+                        ticket_id=existing_ticket.id,
+                        old_status=old_st,
+                        new_status=TicketStatus.ESCALATED,
+                        changed_by="AI Workflow",
+                    )
+                )
+
+        # Ticket Reference Transparency
+        if active_ticket:
+            ticket_ref_text = f"**Ticket Reference:** `#{str(active_ticket.id)[:8].upper()}`"
+            if responses and responses[-1].get("sender") == "AI":
+                responses[-1]["content"] = f"{responses[-1]['content'].strip()}\n\n{ticket_ref_text}"
+                last_ai_msg_stmt = (
+                    select(Message)
+                    .where(
+                        Message.conversation_id == conv_uuid,
+                        Message.sender_type == SenderType.AI,
+                    )
+                    .order_by(Message.created_at.desc())
+                    .limit(1)
+                )
+                last_ai_msg_res = await db.execute(last_ai_msg_stmt)
+                last_ai_msg_rec = last_ai_msg_res.scalar_one_or_none()
+                if last_ai_msg_rec:
+                    last_ai_msg_rec.content = responses[-1]["content"]
+                    db.add(last_ai_msg_rec)
+            else:
+                escalation_content = (
+                    f"I have recorded your issue and created an escalated support ticket for an L1 Support Engineer.\n\n{ticket_ref_text}"
+                )
+                fallback_msg = Message(
+                    conversation_id=conv_uuid,
+                    sender_type=SenderType.AI,
+                    content=escalation_content,
+                )
+                db.add(fallback_msg)
+                responses.append({"sender": "AI", "content": escalation_content})
+
+    # Persist newly classified ticket metadata in NEW status if not already created
+    if not is_escalated and confirmation_decision != "resolved":
+        t_exist_stmt = select(Ticket).where(Ticket.conversation_id == conv_uuid)
+        t_exist_res = await db.execute(t_exist_stmt)
+        if not t_exist_res.scalar_one_or_none():
+            cat = final_state.get("category")
+            if cat and cat != "general_support":
+                original_issue = next(
+                    (
+                        m.content
+                        for m in history_messages
+                        if isinstance(m, HumanMessage)
+                        and m.content
+                    ),
+                    message.content,
+                )
+                title_snippet = original_issue.strip().split("\n")[0][:50]
+                new_ticket = Ticket(
+                    user_id=conversation.user_id,
+                    conversation_id=conv_uuid,
+                    title=f"[{cat}] {title_snippet}",
+                    description=original_issue,
+                    category=cat,
+                    priority=final_state.get("priority", "MEDIUM").upper(),
+                    priority_rationale=final_state.get("priority_rationale"),
+                    status=TicketStatus.NEW,
+                    department=user.get("department"),
+                )
+                db.add(new_ticket)
 
     await db.commit()
 

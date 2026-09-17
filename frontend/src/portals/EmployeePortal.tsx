@@ -26,6 +26,7 @@ export const EmployeePortal: React.FC = () => {
   const [activity, setActivity] = useState<string[]>([]);
   const [isHumanTakeover, setIsHumanTakeover] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'fixed' | 'having_issues' | 'not_sure' | null>(null);
+  const [historyTab, setHistoryTab] = useState<'all' | 'active' | 'closed'>('all');
 
 
   const chatWindowRef = useRef<HTMLDivElement | null>(null);
@@ -200,6 +201,16 @@ export const EmployeePortal: React.FC = () => {
     setIsSending(true);
     setInput('');
 
+    // Optimistically show user message immediately
+    const tempUserMsgId = `temp-user-${Date.now()}`;
+    const tempUserMsg: ChatMessageRecord = {
+      id: tempUserMsgId,
+      sender_type: 'USER',
+      content: currentInput,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempUserMsg]);
+
     try {
       let targetConvId = activeConversationId;
       if (!targetConvId) {
@@ -215,11 +226,13 @@ export const EmployeePortal: React.FC = () => {
         setIsHumanTakeover(true);
       }
 
-      // Refresh messages & conversation list
+      // Refresh messages & conversation list with official DB state
       const updated = await getConversationMessages(targetConvId);
       setMessages(updated);
-      await loadConversations(true);
+      setIsSending(false);
+      loadConversations(true);
     } catch (requestError) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsgId));
       setInput(currentInput);
       setError(requestError instanceof ApiError ? requestError.message : 'Unable to send your request.');
     } finally {
@@ -328,6 +341,17 @@ export const EmployeePortal: React.FC = () => {
               </div>
             );
           })
+        )}
+
+        {isSending && messages.length > 0 && messages[messages.length - 1].sender_type === 'USER' && (
+          <div className="message ai is-thinking">
+            <span className="message-label">{isHumanTakeover ? 'Support Engineer' : 'AI Helpdesk'}</span>
+            <div className="typing-indicator-container" aria-label="Thinking">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </div>
+          </div>
         )}
 
         {/* User-verification flow (Demo) */}
@@ -496,38 +520,78 @@ export const EmployeePortal: React.FC = () => {
           </button>
         </div>
 
-        {isLoadingList && conversations.length === 0 ? (
-          <div className="empty-state panel-empty" style={{ minHeight: '140px' }}>
-            <span>Loading your past conversations...</span>
-          </div>
-        ) : conversations.length === 0 ? (
-          <div className="empty-state panel-empty" style={{ minHeight: '140px' }}>
-            <strong>No past conversations</strong>
-            <span>Your support requests will appear here.</span>
-          </div>
-        ) : (
-          <div className="history-grid">
-            {conversations.map((conv) => (
-              <div
-                key={conv.id}
-                className={`history-card ${activeConversationId === conv.id ? 'is-active' : ''}`}
-                onClick={() => handleSelectConversation(conv.id)}
-                role="button"
-                tabIndex={0}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                  <div className="history-card-title">{conv.title}</div>
-                  {getStatusBadge(conv)}
-                </div>
-                <div className="history-card-preview">{conv.preview}</div>
-                <div className="history-card-footer">
-                  <span>{conv.message_count} {conv.message_count === 1 ? 'message' : 'messages'}</span>
-                  <span>{conv.created_at ? new Date(conv.created_at).toLocaleDateString() : ''}</span>
-                </div>
+        {/* History Tab Controls */}
+        {(() => {
+          const activeList = conversations.filter((c) => c.status !== 'CLOSED' && c.ticket_status !== 'CLOSED');
+          const closedList = conversations.filter((c) => c.status === 'CLOSED' || c.ticket_status === 'CLOSED');
+          const filteredList =
+            historyTab === 'active'
+              ? activeList
+              : historyTab === 'closed'
+                ? closedList
+                : conversations;
+
+          return (
+            <>
+              <div className="queue-tab-bar" style={{ maxWidth: '400px', marginBottom: '16px' }} role="tablist">
+                <button
+                  type="button"
+                  className={`queue-tab-btn ${historyTab === 'all' ? 'is-active' : ''}`}
+                  onClick={() => setHistoryTab('all')}
+                >
+                  All ({conversations.length})
+                </button>
+                <button
+                  type="button"
+                  className={`queue-tab-btn ${historyTab === 'active' ? 'is-active' : ''}`}
+                  onClick={() => setHistoryTab('active')}
+                >
+                  Active ({activeList.length})
+                </button>
+                <button
+                  type="button"
+                  className={`queue-tab-btn ${historyTab === 'closed' ? 'is-active' : ''}`}
+                  onClick={() => setHistoryTab('closed')}
+                >
+                  History ({closedList.length})
+                </button>
               </div>
-            ))}
-          </div>
-        )}
+
+              {isLoadingList && conversations.length === 0 ? (
+                <div className="empty-state panel-empty" style={{ minHeight: '140px' }}>
+                  <span>Loading your past conversations...</span>
+                </div>
+              ) : filteredList.length === 0 ? (
+                <div className="empty-state panel-empty" style={{ minHeight: '140px' }}>
+                  <strong>No conversations found</strong>
+                  <span>{historyTab === 'closed' ? 'No closed or resolved conversations yet.' : 'Your support requests will appear here.'}</span>
+                </div>
+              ) : (
+                <div className="history-grid">
+                  {filteredList.map((conv) => (
+                    <div
+                      key={conv.id}
+                      className={`history-card ${activeConversationId === conv.id ? 'is-active' : ''}`}
+                      onClick={() => handleSelectConversation(conv.id)}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        <div className="history-card-title">{conv.title}</div>
+                        {getStatusBadge(conv)}
+                      </div>
+                      <div className="history-card-preview">{conv.preview}</div>
+                      <div className="history-card-footer">
+                        <span>{conv.message_count} {conv.message_count === 1 ? 'message' : 'messages'}</span>
+                        <span>{conv.created_at ? new Date(conv.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </section>
     </div>
   );

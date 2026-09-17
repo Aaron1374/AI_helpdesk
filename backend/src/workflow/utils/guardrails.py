@@ -16,6 +16,8 @@ MAX_INPUT_CHARS = 2048
 MAX_INPUT_WORDS = 512
 
 
+from src.workflow.constants import CONFIRM_MARKER, CONFIRM_FINAL_MARKER
+
 def sanitize_input(text: str) -> str:
     """
     Clean user input before it reaches an LLM prompt or embedding call.
@@ -25,15 +27,17 @@ def sanitize_input(text: str) -> str:
     reviewer while an LLM still reads them), stray template markers, raw
     HTML tags (defense in depth), excess whitespace, and a hard length cap.
 
-    Deliberately does NOT strip semicolons or "--": this text never reaches
-    raw SQL (SQLAlchemy uses bound parameters everywhere), and stripping
-    those characters mangles real troubleshooting text — command syntax,
-    timestamps, ordinary hyphenation. Prompt-injection *intent* is handled
-    separately and far more reliably by injection_pre_check_node, which
-    reasons about meaning, not punctuation.
+    Preserves internal confirmation state markers if present in message history.
     """
     if not text:
         return ""
+
+    has_confirm = CONFIRM_MARKER in text
+    has_confirm_final = CONFIRM_FINAL_MARKER in text
+    if has_confirm:
+        text = text.replace(CONFIRM_MARKER, " ___CONFIRM_MARKER___ ")
+    if has_confirm_final:
+        text = text.replace(CONFIRM_FINAL_MARKER, " ___CONFIRM_FINAL_MARKER___ ")
 
     sanitized = _ZERO_WIDTH_AND_CONTROL.sub("", text)
     sanitized = _TEMPLATE_PATTERN.sub("", sanitized)
@@ -47,6 +51,10 @@ def sanitize_input(text: str) -> str:
         sanitized = " ".join(words[:MAX_INPUT_WORDS])
     if len(sanitized) > MAX_INPUT_CHARS:
         sanitized = sanitized[:MAX_INPUT_CHARS]
+    if has_confirm:
+        sanitized = sanitized.replace("___CONFIRM_MARKER___", CONFIRM_MARKER)
+    if has_confirm_final:
+        sanitized = sanitized.replace("___CONFIRM_FINAL_MARKER___", CONFIRM_FINAL_MARKER)
 
     return sanitized.strip()
 

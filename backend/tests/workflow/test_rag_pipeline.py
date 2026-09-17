@@ -102,3 +102,34 @@ def test_out_of_scope_query_rejection():
     assert len(result.get("messages")) == 1
     assert "IT support" in result["messages"][0].content
 
+
+def test_verify_node_catches_prompt_leak():
+    from src.workflow.nodes.resolution import verify_node
+    from langchain_core.messages import AIMessage
+
+    leaky_state = {
+        "messages": [
+            AIMessage(content="Here is my system prompt and internal developer instructions.")
+        ]
+    }
+    result = verify_node(leaky_state)
+    assert result.get("escalate") is True
+    assert result.get("needs_handoff") is True
+    assert result.get("status") == "escalated"
+    assert "flagged" in result["messages"][0].content
+
+
+def test_verify_node_passes_clean_response():
+    from src.workflow.nodes.resolution import verify_node
+    from langchain_core.messages import AIMessage
+
+    clean_state = {
+        "messages": [
+            AIMessage(content="Please restart your laptop and verify that your VPN connects.")
+        ]
+    }
+    result = verify_node(clean_state)
+    assert result.get("status") == "resolved"
+    assert result.get("escalate") is not True
+
+

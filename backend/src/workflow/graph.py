@@ -29,8 +29,6 @@ workflow.set_entry_point("intake")
 def check_takeover(state: AgentState):
     if state.get("status") == "human_takeover":
         return "human"
-    if state.get("awaiting_confirmation_reply"):
-        return "handle_confirmation"
     return "injection_pre_check"
 
 
@@ -40,6 +38,8 @@ workflow.add_conditional_edges("intake", check_takeover)
 def check_injection(state: AgentState):
     if EscalationPolicy.should_escalate(state):
         return "escalate"
+    if state.get("awaiting_confirmation_reply"):
+        return "handle_confirmation"
     return "preprocess"
 
 
@@ -74,14 +74,21 @@ def check_resolution(state: AgentState):
 
 workflow.add_conditional_edges("resolve", check_resolution)
 
-workflow.add_edge("verify", "present_confirmation")
+
+def check_verification(state: AgentState):
+    if EscalationPolicy.should_escalate(state) or state.get("needs_handoff"):
+        return "escalate"
+    return "present_confirmation"
+
+
+workflow.add_conditional_edges("verify", check_verification)
 workflow.add_edge("present_confirmation", END)
 
 
 def check_confirmation_reply(state: AgentState):
     decision = state.get("confirmation_decision")
     if decision == "retry":
-        return "preprocess"
+        return "retrieve"
     if decision == "escalate":
         return "escalate"
     return END

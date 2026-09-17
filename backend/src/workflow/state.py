@@ -7,6 +7,7 @@ class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     input: str
     sanitized_query: str
+    search_query: str
     needs_clarification: bool
     escalate: bool
     needs_handoff: bool

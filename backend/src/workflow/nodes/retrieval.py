@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 async def retrieve_node(state: AgentState, config: RunnableConfig = None):
-    query = state.get("sanitized_query") or state.get("input", "")
+    query = state.get("search_query") or state.get("sanitized_query") or state.get("input", "")
     user_context = state.get("user_context", {}) or {}
     user_department = user_context.get("department", "general")
 
@@ -21,7 +21,11 @@ async def retrieve_node(state: AgentState, config: RunnableConfig = None):
     except Exception as e:
         logger.warning(f"Error during retrieval node execution: {e}")
 
-    evidence = list(state.get("evidence", []))
+    # Deduplicate knowledge_and_incidents so retries don't accumulate stale copies
+    evidence = [
+        e for e in state.get("evidence", [])
+        if not (isinstance(e, dict) and e.get("source") == "knowledge_and_incidents")
+    ]
     if docs:
         evidence.append({"source": "knowledge_and_incidents", "documents": docs})
     else:

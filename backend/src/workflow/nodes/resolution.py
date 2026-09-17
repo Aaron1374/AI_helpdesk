@@ -1,3 +1,4 @@
+import re
 import json
 import logging
 
@@ -53,9 +54,11 @@ def diagnose_node(state: AgentState, config: RunnableConfig = None):
         llm_with_tools = llm.bind_tools(tools)
         prompt = [
             SystemMessage(content="You are an IT diagnostic agent. You MUST use tools to gather evidence before resolving issues."),
-            HumanMessage(content=sanitized_query),
         ]
-        prompt.extend(messages)
+        if messages:
+            prompt.extend(messages)
+        else:
+            prompt.append(HumanMessage(content=sanitized_query))
         try:
             response = llm_with_tools.invoke(prompt, config=config)
             if hasattr(response, "tool_calls") and response.tool_calls:
@@ -97,16 +100,6 @@ def resolve_node(state: AgentState, config: RunnableConfig = None):
         logger.info(f"Retrieval score {retrieval_score:.4f} below threshold {SIMILARITY_THRESHOLD}. Escalating.")
         return {"needs_handoff": True, "escalate": True, "status": "escalated"}
 
-    tool_name = select_mock_tool(sanitized_query)
-    if tool_name and tool_name not in tool_history:
-        try:
-            res = gateway.execute(user_context, tool_name, target_id="mock123")
-            evidence.append({"source": "diagnostic_tool", "tool": tool_name, "result": res})
-            tool_history.append(tool_name)
-        except Exception as e:
-            logger.warning(f"Error executing tool {tool_name} in resolve_node: {e}")
-            evidence.append({"error": str(e)})
-
     llm = get_chat_model(temperature=LLM_TEMPERATURE, seed=LLM_SEED)
     if not llm:
         logger.warning("LLM model not available in resolve_node. Triggering handoff.")
@@ -141,5 +134,38 @@ def resolve_node(state: AgentState, config: RunnableConfig = None):
         return {"needs_handoff": True, "escalate": True, "status": "escalated", "evidence": evidence}
 
 
+_LEAK_PATTERNS = [
+    r"system prompt\b",
+    r"developer instructions\b",
+    r"ignore all previous instructions\b",
+    r"AKIA[0-9A-Z]{16}",
+    r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
+]
+_LEAK_RE = re.compile("|".join(_LEAK_PATTERNS), re.IGNORECASE)
+
+
 def verify_node(state: AgentState, config: RunnableConfig = None):
+    """
+    Active safety and compliance guardrail.
+    Inspects generated response for system prompt disclosures, leaked credentials,
+    or policy violations before presenting to the user.
+    """
+    messages = state.get("messages", []) or []
+    for msg in reversed(messages):
+        if isinstance(msg, AIMessage) and msg.content:
+            content = msg.content
+            if _LEAK_RE.search(content):
+                logger.warning("Verification guardrail failed: potential prompt or credential leak detected.")
+                return {
+                    "status": "escalated",
+                    "escalate": True,
+                    "needs_handoff": True,
+                    "messages": [
+                        AIMessage(
+                            content="I have flagged this request for review by our engineering team to ensure technical accuracy and security. Escalating now."
+                        )
+                    ],
+                }
+            break
+
     return {"status": state.get("status", "resolved")}

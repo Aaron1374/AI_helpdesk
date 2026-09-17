@@ -42,6 +42,26 @@ def _prior_ai_turns(state: AgentState) -> int:
     return sum(1 for m in state.get("messages", []) or [] if isinstance(m, AIMessage))
 
 
+def _extract_search_query(state: AgentState, current_input: str) -> str:
+    """
+    Extract a focused search query for vector retrieval, avoiding conversational
+    boilerplate (like 'Did that resolve the issue?', '1 - Yes', 'hello').
+    """
+    human_messages = [
+        m.content for m in (state.get("messages", []) or [])
+        if isinstance(m, HumanMessage) and getattr(m, "content", "")
+    ]
+    if not human_messages:
+        return current_input.strip()
+
+    first_problem = human_messages[0].strip()
+    words = current_input.strip().split()
+    if len(words) <= 4 or current_input.strip().lower() in {"no", "nope", "2", "still broken", "same issue", "not working"}:
+        return first_problem
+
+    return f"{first_problem} {current_input.strip()}".strip()
+
+
 _TOPIC_PIVOT_PATTERNS = [
     r"\border me\b", r"\bpizza\b", r"\bfood delivery\b", r"\bzomato\b", r"\bswiggy\b",
     r"\buber\b", r"\btell me a joke\b", r"\bplay (some )?music\b", r"\bwhat'?s the weather\b",
@@ -99,6 +119,7 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
             return {
                 "needs_clarification": True,
                 "sanitized_query": raw_text,
+                "search_query": raw_text,
                 "messages": [AIMessage(content=(
                     "Hello! I'm your AI IT Helpdesk Assistant. Please describe the IT issue "
                     "you're experiencing — what you were doing, what happened, and any error "
@@ -113,6 +134,7 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
                 "needs_clarification": False,
                 "out_of_scope": True,
                 "sanitized_query": sanitized,
+                "search_query": sanitized,
                 "status": "resolved",
                 "messages": [AIMessage(content=(
                     "I'm sorry, but your request doesn't appear to be related to IT support. "
@@ -139,12 +161,14 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
             }
 
     transcript = _conversation_transcript(state, sanitized)
+    search_q = _extract_search_query(state, sanitized)
 
     if prior_rounds >= MAX_CLARIFICATION_ROUNDS:
         return {
             "needs_clarification": False,
             "out_of_scope": False,
             "sanitized_query": sanitize_input(transcript),
+            "search_query": search_q,
         }
 
     llm = get_chat_model()
@@ -153,32 +177,30 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
             "needs_clarification": False,
             "out_of_scope": False,
             "sanitized_query": sanitize_input(transcript),
+            "search_query": search_q,
         }
 
     try:
         prompt = [
             SystemMessage(content=(
                 f"{PERSONA_VOICE}\n\n"
-                "Read the conversation so far and decide whether there is enough "
-                "information to search the knowledge base and troubleshoot "
-                "confidently. Useful details: the affected system (laptop / VPN "
-                "client / app name), the OS, the exact error message or symptom, "
-                "when it started, and any recent change (update, new device, "
-                "password reset).\n\n"
-                "Do NOT ask for information already given anywhere in the "
-                "conversation. Ask at most ONE short, specific follow-up question "
-                "— never a list, never an essay.\n\n"
-                'Return ONLY JSON: {"sufficient": true|false, "question": '
-                '"<short question or empty>"}'
+                "Read the conversation so far and assess the IT issue:\n"
+                "1. Is there sufficient detail to search the knowledge base and troubleshoot? (sufficient: true/false)\n"
+                "   If false, provide at most ONE short, specific follow-up question (never a list, never an essay).\n"
+                "2. If sufficient, classify into Category (Access, Network, Hardware, Software, Email, Security, Application)\n"
+                "   and Priority (CRITICAL, HIGH, MEDIUM, LOW) with a short rationale.\n\n"
+                "Return ONLY a JSON object with keys: 'sufficient', 'question', 'category', 'priority', and 'rationale'."
             )),
             HumanMessage(content=transcript),
         ]
         res = llm.invoke(prompt, config=config)
         content = res.content.strip()
+        if content.startswith("```json"):
+            content = content[7:]
         if content.startswith("```"):
-            content = content.strip("`")
-            if content.lower().startswith("json"):
-                content = content[4:]
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
         parsed = json.loads(content.strip())
 
         if not parsed.get("sufficient", True):
@@ -189,8 +211,29 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
             return {
                 "needs_clarification": True,
                 "sanitized_query": sanitize_input(transcript),
+                "search_query": search_q,
                 "messages": [AIMessage(content=question)],
             }
+
+        # Sufficient: extract category and priority if valid
+        cat = parsed.get("category", "").strip().lower()
+        pri = parsed.get("priority", "").strip().lower()
+        rat = parsed.get("rationale", "").strip()
+
+        updates = {
+            "needs_clarification": False,
+            "out_of_scope": False,
+            "sanitized_query": sanitize_input(transcript),
+            "search_query": search_q,
+        }
+        if cat in ALLOWED_CATEGORIES:
+            updates["category"] = cat
+        if pri in ALLOWED_PRIORITIES:
+            updates["priority"] = pri.upper()
+        if rat:
+            updates["priority_rationale"] = rat
+
+        return updates
 
     except Exception as exc:
         logger.warning("Clarification sufficiency check failed, proceeding without it: %s", exc)
@@ -199,6 +242,7 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
         "needs_clarification": False,
         "out_of_scope": False,
         "sanitized_query": sanitize_input(transcript),
+        "search_query": search_q,
     }
 
 
@@ -212,7 +256,15 @@ ALLOWED_CATEGORIES = {
 ALLOWED_PRIORITIES = {"critical", "high", "medium", "low"}
 
 def classify_node(state: AgentState, config: RunnableConfig = None):
-    text = state.get("sanitized_query") or state.get("input", "")
+    # Fast path: if already classified in unified triage, avoid redundant LLM call
+    if state.get("category") and state.get("category") != "general_support" and state.get("priority"):
+        return {
+            "category": state["category"],
+            "priority": state["priority"],
+            "priority_rationale": state.get("priority_rationale", "Classified during triage."),
+        }
+
+    text = state.get("search_query") or state.get("sanitized_query") or state.get("input", "")
     llm = get_chat_model()
 
     cat = "general_support"

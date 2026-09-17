@@ -136,7 +136,20 @@ def handle_confirmation_node(state: AgentState, config: RunnableConfig = None):
         return {"confirmation_decision": "escalate", "escalate": True, "needs_handoff": True, "status": "escalated"}
 
     if verdict == "no":
-        return {"confirmation_decision": "retry"}
+        human_messages = [
+            m.content for m in (state.get("messages", []) or [])
+            if isinstance(m, HumanMessage) and getattr(m, "content", "")
+        ]
+        orig_problem = human_messages[0] if human_messages else (state.get("sanitized_query") or state.get("input") or "")
+        retry_q = orig_problem
+        words = raw_reply.split()
+        if len(words) > 3 and not raw_reply.lower().startswith("no, still"):
+            retry_q = f"{orig_problem} {raw_reply}".strip()
+        return {
+            "confirmation_decision": "retry",
+            "search_query": retry_q,
+            "sanitized_query": retry_q,
+        }
 
     # "unsure" — don't guess, escalate.
     return {"confirmation_decision": "escalate", "escalate": True, "needs_handoff": True, "status": "escalated"}

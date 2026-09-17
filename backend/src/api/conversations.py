@@ -651,6 +651,7 @@ async def add_message(
     initial_state = {
         "input": message.content,
         "sanitized_query": "",
+        "search_query": "",
         "messages": history_messages,
         "evidence": [],
         "tool_history": [],

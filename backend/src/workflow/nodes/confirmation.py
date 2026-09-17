@@ -57,10 +57,12 @@ _NO = re.compile(r"\b(2|no|nope|still|not working|didn'?t work|same issue)\b", r
 # unconditionally regardless of retry count. A direct request for a
 # person shouldn't be gated by "you haven't used your one retry yet."
 _ESCALATE_REQUEST_RE = re.compile(
-    r"\bescalate\b|\btalk to (a |an )?(person|human|someone|agent|engineer)\b|"
-    r"\bspeak (to|with) (a |an )?(person|human|someone|agent|engineer)\b|"
-    r"\b(connect|transfer) me\b|\breal (person|human)\b|"
-    r"\b(an? )?(human|engineer|agent) (please|now|right now)\b",
+    r"\b(escalate|escalation)\b|"
+    r"\b(talk|speak) (to|with)\b|"
+    r"\b(connect|transfer) me\b|"
+    r"\b(get|need|call|bring|fetch|give me|want) (a |an )?(engineer|human|person|agent|support)\b|"
+    r"\b(real|human) (person|human|being)\b|"
+    r"\b(engineer|human|person|agent|support) (please|here|now|right now)?\b",
     re.I,
 )
 

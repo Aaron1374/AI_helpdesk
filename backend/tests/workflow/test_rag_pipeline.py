@@ -6,22 +6,26 @@ from src.workflow.nodes.triage import preprocess_node
 from src.workflow.constants import SIMILARITY_THRESHOLD
 
 def test_sanitize_input():
-    # Test Jinja template stripping
+    # Test Jinja/template stripping
     raw_jinja = "My issue is {{ user.password }} when logging in"
     sanitized = sanitize_input(raw_jinja)
+
     assert "{{ user.password }}" not in sanitized
     assert "My issue is" in sanitized
 
-    # Test SQL injection character stripping
-    raw_sql = "My issue is VPN not working; DROP TABLE users; --"
-    sanitized_sql = sanitize_input(raw_sql)
-    assert ";" not in sanitized_sql
-    assert "--" not in sanitized_sql
-    assert "VPN not working" in sanitized_sql
+    # Semicolons and -- should be preserved
+    # because they can appear in legitimate technical text.
+    raw_technical = "VPN not working; I ran ipconfig /release -- still fails"
+    sanitized_technical = sanitize_input(raw_technical)
+
+    assert ";" in sanitized_technical
+    assert "--" in sanitized_technical
+    assert "VPN not working" in sanitized_technical
 
     # Test truncation
     long_text = "word " * 600
     sanitized_long = sanitize_input(long_text)
+
     assert len(sanitized_long.split()) <= 512
 
 

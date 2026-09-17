@@ -6,28 +6,48 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+_ZERO_WIDTH_AND_CONTROL = re.compile(
+    r"[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF\x00-\x08\x0B\x0C\x0E-\x1F]"
+)
+_TEMPLATE_PATTERN = re.compile(r"\{\{.*?\}\}|\{%.*?%\}")
+_HTML_TAG_PATTERN = re.compile(r"<[^>]{1,200}>")
+
+MAX_INPUT_CHARS = 2048
+MAX_INPUT_WORDS = 512
+
+
 def sanitize_input(text: str) -> str:
     """
-    Sanitize prompt input by stripping template parameters, dangerous SQL/comment
-    patterns, and truncating to a safe max length (512 tokens / ~2048 chars).
+    Clean user input before it reaches an LLM prompt or embedding call.
+
+    Handles what's actually a risk here: zero-width/bidi-override unicode
+    (a known technique for smuggling hidden instructions past a human
+    reviewer while an LLM still reads them), stray template markers, raw
+    HTML tags (defense in depth), excess whitespace, and a hard length cap.
+
+    Deliberately does NOT strip semicolons or "--": this text never reaches
+    raw SQL (SQLAlchemy uses bound parameters everywhere), and stripping
+    those characters mangles real troubleshooting text — command syntax,
+    timestamps, ordinary hyphenation. Prompt-injection *intent* is handled
+    separately and far more reliably by injection_pre_check_node, which
+    reasons about meaning, not punctuation.
     """
     if not text:
         return ""
-    
-    sanitized = text
-    # Remove mustache / jinja template patterns {{ ... }}
-    sanitized = re.sub(r"\{\{.*?\}\}", "", sanitized)
-    
-    # Remove SQL comment and semicolon injection sequences
-    sanitized = re.sub(r";|--|/\*|\*/", "", sanitized)
-    
-    # Truncate to maximum length representing ~512 tokens
+
+    sanitized = _ZERO_WIDTH_AND_CONTROL.sub("", text)
+    sanitized = _TEMPLATE_PATTERN.sub("", sanitized)
+    sanitized = _HTML_TAG_PATTERN.sub("", sanitized)
+
+    sanitized = re.sub(r"[ \t]+", " ", sanitized)
+    sanitized = re.sub(r"\n{3,}", "\n\n", sanitized)
+
     words = sanitized.split()
-    if len(words) > 512:
-        sanitized = " ".join(words[:512])
-    elif len(sanitized) > 2048:
-        sanitized = sanitized[:2048]
-        
+    if len(words) > MAX_INPUT_WORDS:
+        sanitized = " ".join(words[:MAX_INPUT_WORDS])
+    if len(sanitized) > MAX_INPUT_CHARS:
+        sanitized = sanitized[:MAX_INPUT_CHARS]
+
     return sanitized.strip()
 
 

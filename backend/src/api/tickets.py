@@ -88,8 +88,11 @@ async def get_similar_tickets(ticket_id: str, user: dict = Depends(RoleChecker(S
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
         
-    similar_docs = await RetrievalService.get_similar_documents(db, ticket.description, user.get("department"))
-    
+    similar_docs, _ = await RetrievalService.get_similar_documents(
+        db,
+        ticket.description,
+        user.get("department")
+    )  
     # Filter out the current ticket if it appears in the results
     similar_incidents = [doc for doc in similar_docs if doc["type"] == "ticket" and doc["title"] != ticket.title]
     return similar_incidents

@@ -6,14 +6,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def retrieve_node(state: AgentState, config: RunnableConfig = None,):
-    """Async retrieval node — runs on the same event loop as FastAPI/LangGraph."""
+
+async def retrieve_node(state: AgentState, config: RunnableConfig = None):
     query = state.get("sanitized_query") or state.get("input", "")
     user_context = state.get("user_context", {}) or {}
     user_department = user_context.get("department", "general")
 
-    docs = []
-    score = 0.0
+    docs, score = [], 0.0
     try:
         async with AsyncSessionLocal() as session:
             docs, score = await RetrievalService.get_similar_documents(
@@ -21,12 +20,12 @@ async def retrieve_node(state: AgentState, config: RunnableConfig = None,):
             )
     except Exception as e:
         logger.warning(f"Error during retrieval node execution: {e}")
-        docs = []
-        score = 0.0
 
     evidence = list(state.get("evidence", []))
     if docs:
         evidence.append({"source": "knowledge_and_incidents", "documents": docs})
+    else:
+        logger.info(f"No documents cleared the relevance floor for query: '{query[:60]}'")
 
     logger.info(f"Retrieval completed — query: '{query[:60]}', score: {score:.4f}, docs: {len(docs)}")
     return {"evidence": evidence, "retrieval_score": score}

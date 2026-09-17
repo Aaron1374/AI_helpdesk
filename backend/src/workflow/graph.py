@@ -5,6 +5,7 @@ from src.workflow.nodes.triage import preprocess_node, classify_node
 from src.workflow.nodes.retrieval import retrieve_node
 from src.workflow.nodes.resolution import diagnose_node, resolve_node, verify_node
 from src.workflow.nodes.handoff import handoff_node, escalate_node, human_node
+from src.workflow.nodes.confirmation import present_confirmation_node, handle_confirmation_node
 from src.workflow.escalation import EscalationPolicy
 
 workflow = StateGraph(AgentState)
@@ -17,49 +18,76 @@ workflow.add_node("retrieve", retrieve_node)
 workflow.add_node("diagnose", diagnose_node)
 workflow.add_node("resolve", resolve_node)
 workflow.add_node("verify", verify_node)
+workflow.add_node("present_confirmation", present_confirmation_node)
+workflow.add_node("handle_confirmation", handle_confirmation_node)
 workflow.add_node("escalate", escalate_node)
 workflow.add_node("human", human_node)
 
 workflow.set_entry_point("intake")
 
+
 def check_takeover(state: AgentState):
-    # Interrupt if human took over
     if state.get("status") == "human_takeover":
         return "human"
+    if state.get("awaiting_confirmation_reply"):
+        return "handle_confirmation"
     return "injection_pre_check"
 
+
 workflow.add_conditional_edges("intake", check_takeover)
+
 
 def check_injection(state: AgentState):
     if EscalationPolicy.should_escalate(state):
         return "escalate"
     return "preprocess"
 
+
 workflow.add_conditional_edges("injection_pre_check", check_injection)
+
 
 def check_clarification(state: AgentState):
     if state.get("needs_clarification") or state.get("out_of_scope"):
         return END
     return "classify"
 
+
 workflow.add_conditional_edges("preprocess", check_clarification)
 workflow.add_edge("classify", "retrieve")
 workflow.add_edge("retrieve", "diagnose")
+
 
 def check_diagnose(state: AgentState):
     if EscalationPolicy.should_escalate(state):
         return "escalate"
     return "resolve"
 
+
 workflow.add_conditional_edges("diagnose", check_diagnose)
+
 
 def check_resolution(state: AgentState):
     if EscalationPolicy.should_escalate(state) or state.get("needs_handoff"):
         return "escalate"
     return "verify"
 
+
 workflow.add_conditional_edges("resolve", check_resolution)
-workflow.add_edge("verify", END)
+
+workflow.add_edge("verify", "present_confirmation")
+workflow.add_edge("present_confirmation", END)
+
+
+def check_confirmation_reply(state: AgentState):
+    decision = state.get("confirmation_decision")
+    if decision == "retry":
+        return "preprocess"
+    if decision == "escalate":
+        return "escalate"
+    return END
+
+
+workflow.add_conditional_edges("handle_confirmation", check_confirmation_reply)
 
 workflow.add_edge("escalate", "human")
 workflow.add_edge("human", END)

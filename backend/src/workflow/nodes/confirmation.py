@@ -133,7 +133,13 @@ def handle_confirmation_node(state: AgentState, config: RunnableConfig = None):
     is_final_stage = _final_confirmation_already_sent(state)
 
     if is_final_stage:
-        return {"confirmation_decision": "escalate", "escalate": True, "needs_handoff": True, "status": "escalated"}
+        return {
+            "confirmation_decision": "escalate",
+            "escalate": True,
+            "needs_handoff": True,
+            "status": "escalated",
+            "messages": [AIMessage(content="Understood — connecting you with an engineer now.")],
+        }
 
     if verdict == "no":
         human_messages = [
@@ -152,4 +158,10 @@ def handle_confirmation_node(state: AgentState, config: RunnableConfig = None):
         }
 
     # "unsure" — don't guess, escalate.
-    return {"confirmation_decision": "escalate", "escalate": True, "needs_handoff": True, "status": "escalated"}
+    return {
+        "confirmation_decision": "escalate",
+        "escalate": True,
+        "needs_handoff": True,
+        "status": "escalated",
+        "messages": [AIMessage(content="I don't want to guess — let me bring in an engineer to take a look.")],
+    }

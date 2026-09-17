@@ -24,6 +24,12 @@ export const EngineerDashboard: React.FC = () => {
   const [isSending, setIsSending] = useState<boolean>(false);
   const [isActionLoading, setIsActionLoading] = useState<boolean>(false);
 
+  // New states for queue tabs and real-time escalation pop-up alert
+  const [queueTab, setQueueTab] = useState<'active' | 'history'>('active');
+  const [escalationAlert, setEscalationAlert] = useState<TicketItem | null>(null);
+  const knownEscalatedIdsRef = useRef<Set<string>>(new Set());
+  const isInitialLoadRef = useRef<boolean>(true);
+
   const consoleBodyRef = useRef<HTMLDivElement | null>(null);
 
   const selectedTicket = tickets.find((t) => t.id === selectedTicketId) ?? null;
@@ -46,9 +52,24 @@ export const EngineerDashboard: React.FC = () => {
     if (!quiet) setIsLoading(true);
     try {
       const ticketList = await getTickets();
+
+      // Real-time Escalation Pop-Up Detection
+      const currentEscalated = ticketList.filter((t) => t.status === 'ESCALATED');
+      if (!isInitialLoadRef.current) {
+        const newlyEscalated = currentEscalated.find((t) => !knownEscalatedIdsRef.current.has(t.id));
+        if (newlyEscalated) {
+          setEscalationAlert(newlyEscalated);
+        }
+      } else {
+        isInitialLoadRef.current = false;
+      }
+      knownEscalatedIdsRef.current = new Set(currentEscalated.map((t) => t.id));
+
       setTickets(ticketList);
       if (ticketList.length > 0 && !selectedTicketId) {
-        setSelectedTicketId(ticketList[0].id);
+        // Select newest ticket initially
+        const newest = [...ticketList].reverse().find((t) => t.status !== 'RESOLVED' && t.status !== 'CLOSED') || ticketList[ticketList.length - 1];
+        setSelectedTicketId(newest.id);
       }
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
@@ -68,7 +89,7 @@ export const EngineerDashboard: React.FC = () => {
     loadTickets();
     const interval = setInterval(() => {
       if (!document.hidden) loadTickets(true);
-    }, 7000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [loadTickets]);
 
@@ -170,11 +191,22 @@ export const EngineerDashboard: React.FC = () => {
 
     setIsSending(true);
     setReplyInput('');
+
+    const tempMsgId = `temp-eng-${Date.now()}`;
+    const tempMsg: ChatMessageRecord = {
+      id: tempMsgId,
+      sender_type: 'SYSTEM',
+      content: `[Engineer] ${text}`,
+      created_at: new Date().toISOString(),
+    };
+    setConversationMessages((prev) => [...prev, tempMsg]);
+
     try {
       await sendMessage(selectedTicket.conversation_id, text);
       const msgs = await getConversationMessages(selectedTicket.conversation_id);
       setConversationMessages(msgs);
     } catch (err) {
+      setConversationMessages((prev) => prev.filter((m) => m.id !== tempMsgId));
       setReplyInput(text);
       setActionNotice(err instanceof Error ? `Send failed: ${err.message}` : 'Failed to send reply.');
     } finally {
@@ -196,6 +228,12 @@ export const EngineerDashboard: React.FC = () => {
     }
   };
 
+  // Sort tickets newest-first
+  const sortedTickets = [...tickets].reverse();
+  const activeTickets = sortedTickets.filter((t) => t.status !== 'RESOLVED' && t.status !== 'CLOSED');
+  const historyTickets = sortedTickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED');
+  const displayedTickets = queueTab === 'active' ? activeTickets : historyTickets;
+
   return (
     <div className="engineer-dashboard">
       <header className="page-heading dashboard-heading">
@@ -203,6 +241,41 @@ export const EngineerDashboard: React.FC = () => {
         <h1>Engineer dashboard</h1>
         <p className="page-subtitle">Review escalated incidents, chat live with employees, and resolve tickets.</p>
       </header>
+
+      {/* Simple Escalation Alert Banner */}
+      {escalationAlert && (
+        <div className="escalation-alert-banner" role="alert">
+          <div className="escalation-alert-content">
+            <span className="escalation-alert-badge">🚨 New Escalated Request</span>
+            <strong>{escalationAlert.title}</strong>
+            <span className="escalation-alert-meta">
+              Category: <code>{escalationAlert.category || 'General Support'}</code> • Priority: <code>{escalationAlert.priority || 'MEDIUM'}</code>
+            </span>
+          </div>
+          <div className="escalation-alert-actions">
+            <button
+              type="button"
+              className="primary-button"
+              style={{ fontSize: '0.85rem', padding: '8px 16px', minHeight: 'auto' }}
+              onClick={() => {
+                setSelectedTicketId(escalationAlert.id);
+                setQueueTab('active');
+                setEscalationAlert(null);
+              }}
+            >
+              View & Take Over
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              style={{ fontSize: '0.85rem', padding: '8px 14px', minHeight: 'auto', background: 'transparent', border: '1px solid var(--line)', color: 'var(--muted)' }}
+              onClick={() => setEscalationAlert(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {actionNotice && (
         <div className="is-success" role="status" style={{ marginBottom: '1rem' }}>
@@ -226,16 +299,38 @@ export const EngineerDashboard: React.FC = () => {
           <aside className="queue-panel" aria-label="Ticket Queue">
             <div className="queue-header">
               <h3>Incident Queue</h3>
-              <span className="queue-count">{tickets.length} Tickets</span>
+              <span className="queue-count">{displayedTickets.length} Tickets</span>
             </div>
 
-            {tickets.length === 0 ? (
+            {/* Active vs History Tab Controls */}
+            <div className="queue-tab-bar" role="tablist">
+              <button
+                type="button"
+                className={`queue-tab-btn ${queueTab === 'active' ? 'is-active' : ''}`}
+                onClick={() => setQueueTab('active')}
+                role="tab"
+                aria-selected={queueTab === 'active'}
+              >
+                Active Queue ({activeTickets.length})
+              </button>
+              <button
+                type="button"
+                className={`queue-tab-btn ${queueTab === 'history' ? 'is-active' : ''}`}
+                onClick={() => setQueueTab('history')}
+                role="tab"
+                aria-selected={queueTab === 'history'}
+              >
+                History ({historyTickets.length})
+              </button>
+            </div>
+
+            {displayedTickets.length === 0 ? (
               <div className="empty-state panel-empty" style={{ minHeight: '180px' }}>
-                <strong>Queue clear</strong>
-                <span>No tickets pending engineer review.</span>
+                <strong>{queueTab === 'active' ? 'Active queue clear' : 'No ticket history'}</strong>
+                <span>{queueTab === 'active' ? 'No open tickets pending engineer review.' : 'Resolved & closed tickets will appear here.'}</span>
               </div>
             ) : (
-              tickets.map((ticket) => (
+              displayedTickets.map((ticket) => (
                 <div
                   key={ticket.id}
                   className={`queue-card ${selectedTicketId === ticket.id ? 'is-active' : ''}`}

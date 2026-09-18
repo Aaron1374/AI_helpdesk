@@ -49,6 +49,9 @@ input:focus-visible {
 }
 
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -56,6 +59,7 @@ input:focus-visible {
   padding: 18px clamp(20px, 5vw, 72px);
   color: #f7fbfa;
   background: var(--ink);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 .brand-lockup {
@@ -154,6 +158,52 @@ h1 {
   border-radius: 10px;
   background: var(--paper);
   box-shadow: var(--shadow);
+}
+
+.employee-chat-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.employee-chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.employee-chat-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.employee-chat-card .chat-window {
+  min-height: 300px;
+  max-height: 480px;
+  padding: 20px;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  flex: 1;
+}
+
+.employee-chat-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.employee-chat-footer .input-area {
+  margin-top: 0;
 }
 
 .chat-window {

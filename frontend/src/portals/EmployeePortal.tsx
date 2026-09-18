@@ -130,28 +130,16 @@ export const EmployeePortal: React.FC = () => {
     };
   }, [activeConversationId]);
 
-  // Handle internal chat container scrolling when messages change
+  // Scroll to bottom ONLY when a new message comes through or on initial conversation load
   useEffect(() => {
-    if (messages.length !== prevCountRef.current) {
+    if (messages.length > prevCountRef.current) {
       const isFirstLoad = prevCountRef.current === 0;
       prevCountRef.current = messages.length;
-      if (isFirstLoad) {
-        scrollToBottom(false);
-      } else if (chatWindowRef.current) {
-        const { scrollTop, scrollHeight, clientHeight } = chatWindowRef.current;
-        const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-        if (isNearBottom) {
-          scrollToBottom(true);
-        }
-      }
+      scrollToBottom(!isFirstLoad);
+    } else if (messages.length < prevCountRef.current) {
+      prevCountRef.current = messages.length;
     }
   }, [messages]);
-
-  useEffect(() => {
-    if (verificationStatus && chatWindowRef.current) {
-      scrollToBottom(true);
-    }
-  }, [verificationStatus]);
 
 
   const handleSelectConversation = (convId: string) => {
@@ -305,161 +293,98 @@ export const EmployeePortal: React.FC = () => {
         </div>
       )}
 
-      {/* Main Single-Column Chat Window */}
-      <div className="chat-window" ref={chatWindowRef}>
+      {/* Main Single-Column Chat Window Card */}
+      <div className="employee-chat-card">
         {activeConvDetails && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '12px', borderBottom: '1px solid var(--line)', marginBottom: '8px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--ink)' }}>
+          <div className="employee-chat-header">
+            <span className="employee-chat-title">
               {activeConvDetails.title}
             </span>
             <div>{getStatusBadge(activeConvDetails)}</div>
           </div>
         )}
 
-        {messages.length === 0 ? (
-          <div className="empty-state">
-            <span className="empty-state-icon" aria-hidden="true">?</span>
-            <strong>Start with a short description</strong>
-            <span>For example: “My VPN stopped connecting this morning.” or “I have no sound on my laptop.”</span>
-          </div>
-        ) : (
-          messages.map((msg, idx) => {
-            const isEngineer = msg.sender_type === 'SYSTEM' || msg.content.startsWith('[Engineer]');
-            const isUser = msg.sender_type === 'USER';
-            const messageClass = isEngineer ? 'support' : isUser ? 'user' : 'ai';
-            const label = isEngineer ? 'Support Engineer' : isUser ? 'You' : 'AI Helpdesk';
-            const cleanContent = isEngineer && msg.content.startsWith('[Engineer] ')
-              ? msg.content.replace('[Engineer] ', '')
-              : msg.content;
+        <div className="chat-window" ref={chatWindowRef}>
+          {messages.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-state-icon" aria-hidden="true">?</span>
+              <strong>Start with a short description</strong>
+              <span>For example: “My VPN stopped connecting this morning.” or “I have no sound on my laptop.”</span>
+            </div>
+          ) : (
+            messages.map((msg, idx) => {
+              const isEngineer = msg.sender_type === 'SYSTEM' || msg.content.startsWith('[Engineer]');
+              const isUser = msg.sender_type === 'USER';
+              const messageClass = isEngineer ? 'support' : isUser ? 'user' : 'ai';
+              const label = isEngineer ? 'Support Engineer' : isUser ? 'You' : 'AI Helpdesk';
+              const cleanContent = isEngineer && msg.content.startsWith('[Engineer] ')
+                ? msg.content.replace('[Engineer] ', '')
+                : msg.content;
 
+              return (
+                <div key={msg.id || idx} className={`message ${messageClass}`}>
+                  <span className="message-label">{label}</span>
+                  {isUser ? (
+                    <span style={{ whiteSpace: 'pre-wrap' }}>{cleanContent}</span>
+                  ) : (
+                    <MarkdownRenderer content={cleanContent} />
+                  )}
+                </div>
+              );
+            })
+          )}
 
-            return (
-              <div key={msg.id || idx} className={`message ${messageClass}`}>
-                <span className="message-label">{label}</span>
-                {isUser ? (
-                  <span style={{ whiteSpace: 'pre-wrap' }}>{cleanContent}</span>
-                ) : (
-                  <MarkdownRenderer content={cleanContent} />
-                )}
+          {isSending && messages.length > 0 && messages[messages.length - 1].sender_type === 'USER' && (
+            <div className="message ai is-thinking">
+              <span className="message-label">{isHumanTakeover ? 'Support Engineer' : 'AI Helpdesk'}</span>
+              <div className="typing-indicator-container" aria-label="Thinking">
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
               </div>
-            );
-          })
-        )}
-
-        {isSending && messages.length > 0 && messages[messages.length - 1].sender_type === 'USER' && (
-          <div className="message ai is-thinking">
-            <span className="message-label">{isHumanTakeover ? 'Support Engineer' : 'AI Helpdesk'}</span>
-            <div className="typing-indicator-container" aria-label="Thinking">
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* User-verification flow (Demo) */}
-        {(() => {
-          const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-          const showVerificationPrompt =
-            lastMsg &&
-            lastMsg.sender_type === 'AI' &&
-            !isCurrentConvClosed &&
-            !isHumanTakeover;
-
-          if (!showVerificationPrompt) return null;
-
-          return (
-            <div className="verification-card" role="region" aria-label="Resolution verification">
-              <p className="verification-title">Is your issue fixed?</p>
-
-              {!verificationStatus ? (
-                <div className="verification-actions">
-                  <button
-                    type="button"
-                    className="verification-btn verification-btn-yes"
-                    onClick={() => setVerificationStatus('fixed')}
-                  >
-                    <span className="btn-icon"></span> Yes, it's fixed
-                  </button>
-                  <button
-                    type="button"
-                    className="verification-btn verification-btn-no"
-                    onClick={() => setVerificationStatus('having_issues')}
-                  >
-                    <span className="btn-icon"></span> No, still having issues
-                  </button>
-                  <button
-                    type="button"
-                    className="verification-btn verification-btn-unsure"
-                    onClick={() => setVerificationStatus('not_sure')}
-                  >
-                    <span className="btn-icon"></span> I'm not sure
-                  </button>
-                </div>
-              ) : verificationStatus === 'fixed' ? (
-                <div className="verification-state state-fixed">
-                  <div className="verification-state-content">
-                    <span className="state-icon">✓</span>
-                    <div>
-                      <strong>Issue Confirmed Fixed</strong>
-                      <p>Great! Marked as resolved. If you need anything else, feel free to start a new chat or continue below.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="verification-reset-btn"
-                    onClick={() => setVerificationStatus(null)}
-                    title="Change response"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : verificationStatus === 'having_issues' ? (
-                <div className="verification-state state-issues">
-                  <div className="verification-state-content">
-                    <span className="state-icon"></span>
-                    <div>
-                      <strong>Need further help?</strong>
-                      <p>Please describe what happened when trying the steps, or any new error messages you're seeing.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="verification-reset-btn"
-                    onClick={() => setVerificationStatus(null)}
-                    title="Change response"
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <div className="verification-state state-escalate">
-                  <div className="verification-state-content">
-                    <span className="state-icon"></span>
-                    <div>
-                      <strong>Escalation to L1 Support Engineer</strong>
-                      <p>Your request will be routed to a human L1 support engineer for manual assistance and follow-up.</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="verification-reset-btn"
-                    onClick={() => setVerificationStatus(null)}
-                    title="Change response"
-                  >
-                    Change
-                  </button>
-                </div>
-              )}
+        <div className="employee-chat-footer">
+          {isCurrentConvClosed ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <span style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>
+                This conversation has been ended. You can review the messages above or start a new request.
+              </span>
+              <button type="button" className="primary-button" onClick={handleNewChat}>
+                + Start New Chat
+              </button>
             </div>
-          );
-        })()}
+          ) : (
+            <form className="input-area" onSubmit={handleSend}>
+              <input
+                className="text-field"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={
+                  isHumanTakeover
+                    ? 'Type your reply to the engineer...'
+                    : activeConversationId
+                      ? 'Reply or ask a follow-up question...'
+                      : 'Describe your issue...'
+                }
+                disabled={isSending}
+              />
+              <button
+                className="primary-button"
+                type="submit"
+                disabled={isSending || !input.trim()}
+              >
+                {isSending ? 'Sending...' : 'Send message'}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
 
-
-
       {activity.length > 0 && (
-        <section className="activity-panel" aria-label="Agent activity">
+        <section className="activity-panel" aria-label="Agent activity" style={{ marginTop: '14px' }}>
           <div className="activity-heading">
             <span className="activity-dot" aria-hidden="true" />
             <strong>Agent activity</strong>
@@ -468,40 +393,6 @@ export const EmployeePortal: React.FC = () => {
             {activity.map((item) => <li key={item}>{item}</li>)}
           </ol>
         </section>
-      )}
-
-      {isCurrentConvClosed ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', background: '#f8fafc', border: '1px solid var(--line)', borderRadius: '8px', marginTop: '14px', flexWrap: 'wrap', gap: '10px' }}>
-          <span style={{ fontSize: '0.9rem', color: 'var(--muted)' }}>
-            This conversation has been ended. You can review the messages above or start a new request.
-          </span>
-          <button type="button" className="primary-button" onClick={handleNewChat}>
-            + Start New Chat
-          </button>
-        </div>
-      ) : (
-        <form className="input-area" onSubmit={handleSend}>
-          <input
-            className="text-field"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={
-              isHumanTakeover
-                ? 'Type your reply to the engineer...'
-                : activeConversationId
-                  ? 'Reply or ask a follow-up question...'
-                  : 'Describe your issue...'
-            }
-            disabled={isSending}
-          />
-          <button
-            className="primary-button"
-            type="submit"
-            disabled={isSending || !input.trim()}
-          >
-            {isSending ? 'Sending...' : 'Send message'}
-          </button>
-        </form>
       )}
 
       {/* History Section Down Below */}

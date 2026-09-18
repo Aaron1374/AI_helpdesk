@@ -258,7 +258,10 @@ export const EmployeePortal: React.FC = () => {
   };
 
   const activeConvDetails = conversations.find((c) => c.id === activeConversationId);
-  const isCurrentConvClosed = activeConvDetails?.status === 'CLOSED' || activeConvDetails?.ticket_status === 'CLOSED';
+  const isCurrentConvClosed =
+    activeConvDetails?.status === 'CLOSED' ||
+    activeConvDetails?.ticket_status === 'CLOSED' ||
+    activeConvDetails?.ticket_status === 'RESOLVED';
 
   return (
     <div className="portal">
@@ -522,8 +525,12 @@ export const EmployeePortal: React.FC = () => {
 
         {/* History Tab Controls */}
         {(() => {
-          const activeList = conversations.filter((c) => c.status !== 'CLOSED' && c.ticket_status !== 'CLOSED');
-          const closedList = conversations.filter((c) => c.status === 'CLOSED' || c.ticket_status === 'CLOSED');
+          const activeList = conversations.filter(
+            (c) => c.status !== 'CLOSED' && c.ticket_status !== 'CLOSED' && c.ticket_status !== 'RESOLVED'
+          );
+          const closedList = conversations.filter(
+            (c) => c.status === 'CLOSED' || c.ticket_status === 'CLOSED' || c.ticket_status === 'RESOLVED'
+          );
           const filteredList =
             historyTab === 'active'
               ? activeList

@@ -46,6 +46,15 @@ def injection_pre_check_node(state: AgentState, config: RunnableConfig = None):
                 ],
             }
 
+    # Common benign support requests & escalation inquiries bypass security injection checks
+    escalation_keywords = [
+        "escalate", "engineer", "human", "agent", "person", "support",
+        "talk to", "speak to", "connect me", "transfer me", "real person",
+        "l1", "l2", "call an engineer", "bring in"
+    ]
+    if any(kw in text_lower for kw in escalation_keywords):
+        return {"escalate": False}
+
     # Common short benign replies (e.g. confirmation responses) bypass LLM injection check
     words = text_lower.split()
     if len(words) <= 2 and text_lower in {"1", "2", "3", "yes", "no", "yep", "nope", "ok", "sure", "thanks", "thank you", "hello", "hi"}:

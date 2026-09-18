@@ -61,6 +61,7 @@ def diagnose_node(state: AgentState, config: RunnableConfig = None):
             prompt.append(HumanMessage(content=sanitized_query))
         try:
             response = llm_with_tools.invoke(prompt, config=config)
+            new_messages = []
             if hasattr(response, "tool_calls") and response.tool_calls:
                 for tool_call in response.tool_calls:
                     t_name, t_args, t_id = tool_call["name"], tool_call["args"], tool_call["id"]
@@ -68,13 +69,13 @@ def diagnose_node(state: AgentState, config: RunnableConfig = None):
                         res = gateway.execute(user_context, t_name, **t_args)
                         evidence.append({"source": "diagnostic_tool", "tool": t_name, "result": res})
                         tool_history.append(t_name)
-                        messages.append(response)
-                        messages.append(ToolMessage(content=json.dumps(res), tool_call_id=t_id))
+                        new_messages.append(response)
+                        new_messages.append(ToolMessage(content=json.dumps(res), tool_call_id=t_id))
                     except Exception as e:
                         evidence.append({"error": str(e)})
-                        messages.append(response)
-                        messages.append(ToolMessage(content=str(e), tool_call_id=t_id))
-            return {"evidence": evidence, "tool_history": tool_history, "messages": messages}
+                        new_messages.append(response)
+                        new_messages.append(ToolMessage(content=str(e), tool_call_id=t_id))
+            return {"evidence": evidence, "tool_history": tool_history, "messages": new_messages}
         except Exception as e:
             evidence.append({"error": str(e)})
             return {"evidence": evidence, "tool_history": tool_history}

@@ -39,6 +39,9 @@ def injection_pre_check_node(state: AgentState, config: RunnableConfig = None):
             return {
                 "escalate": True,
                 "status": "escalated",
+                "category": "security_incident",
+                "priority": "CRITICAL",
+                "priority_rationale": f"Triggered prompt injection security filter: {pattern}",
                 "messages": [
                     AIMessage(
                         content="Security alert: The request was flagged for security review."
@@ -81,6 +84,10 @@ def injection_pre_check_node(state: AgentState, config: RunnableConfig = None):
             if verdict == "INJECTION":
                 return {
                     "escalate": True,
+                    "status": "escalated",
+                    "category": "security_incident",
+                    "priority": "CRITICAL",
+                    "priority_rationale": "LLM classified user input as prompt injection attempt.",
                     "messages": [
                         AIMessage(
                             content="Security alert: The request was flagged for security review."
@@ -117,6 +124,10 @@ def injection_pre_check_node(state: AgentState, config: RunnableConfig = None):
         if pattern in text_lower:
             return {
                 "escalate": True,
+                "status": "escalated",
+                "category": "security_incident",
+                "priority": "CRITICAL",
+                "priority_rationale": f"Triggered fallback injection security filter: {pattern}",
                 "messages": [
                     AIMessage(
                         content="Security alert: The request was flagged for security review."

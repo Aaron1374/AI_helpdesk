@@ -12,6 +12,8 @@ def test_prompt_injection_defense():
     malicious_result = injection_pre_check_node(malicious_state)
     
     assert malicious_result.get("escalate") is True
+    assert malicious_result.get("category") == "security_incident"
+    assert malicious_result.get("priority") == "CRITICAL"
     assert "Security alert" in malicious_result["messages"][0].content
 
 
@@ -27,4 +29,17 @@ def test_injection_blocked_even_during_confirmation_state():
     }
     result = graph_app.invoke(malicious_confirm_state)
     assert result.get("escalate") is True or result.get("status") in {"escalated", "human_takeover"}
+
+
+def test_resolve_ticket_priority():
+    from src.api.conversations import _resolve_ticket_priority
+    from src.models.ticket import TicketPriority
+
+    assert _resolve_ticket_priority("") == TicketPriority.MEDIUM
+    assert _resolve_ticket_priority(None) == TicketPriority.MEDIUM
+    assert _resolve_ticket_priority("CRITICAL") == TicketPriority.CRITICAL
+    assert _resolve_ticket_priority("high") == TicketPriority.HIGH
+    assert _resolve_ticket_priority("invalid_xyz") == TicketPriority.MEDIUM
+    assert _resolve_ticket_priority(TicketPriority.LOW) == TicketPriority.LOW
+
 

@@ -27,8 +27,9 @@ def handoff_node(state: AgentState, config: RunnableConfig = None,):
         and last_msg.content
         and any(k in last_msg.content.lower() for k in ["escalat", "engineer", "security alert", "connecting you", "recorded your issue"])
     )
+    new_msgs = []
     if not has_recent_escalation_msg:
-        msgs.append(
+        new_msgs.append(
             AIMessage(
                 content=(
                     "I have recorded your issue and created an escalated support ticket for an L1 Support Engineer. "
@@ -43,7 +44,7 @@ def handoff_node(state: AgentState, config: RunnableConfig = None,):
         "needs_handoff": True,
         "escalate": True,
         "evidence": evidence,
-        "messages": msgs
+        "messages": new_msgs
     }
 
 # Alias for backward compatibility with graph wiring

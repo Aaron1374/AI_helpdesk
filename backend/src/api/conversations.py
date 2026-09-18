@@ -1,7 +1,7 @@
 import logging
 import uuid
 
-from typing import List
+from typing import List, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -25,6 +25,7 @@ from src.models.chat import (
     SenderType,
 )
 from src.models.user import User, UserRole
+from src.models.ticket import TicketPriority
 
 from src.workflow.graph import app as graph_app
 from src.workflow.utils.history_utils import build_bounded_history
@@ -37,6 +38,20 @@ from src.workflow.constants import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
+
+
+def _resolve_ticket_priority(
+    priority_val: Any,
+    default: TicketPriority = TicketPriority.MEDIUM,
+) -> TicketPriority:
+    if isinstance(priority_val, TicketPriority):
+        return priority_val
+    if not priority_val:
+        return default
+    try:
+        return TicketPriority(str(priority_val).strip().upper())
+    except (ValueError, KeyError):
+        return default
 
 
 class MessageCreate(BaseModel):
@@ -764,10 +779,7 @@ async def add_message(
                 )
 
         else:
-            cat = final_state.get(
-                "category",
-                "General Support",
-            )
+            cat = final_state.get("category") or "General Support"
 
             # IMPORTANT:
             # message.content is the current confirmation
@@ -799,10 +811,9 @@ async def add_message(
                 title=ticket_title,
                 description=ticket_description,
                 category=cat,
-                priority=final_state.get(
-                    "priority",
-                    "MEDIUM",
-                ).upper(),
+                priority=_resolve_ticket_priority(
+                    final_state.get("priority")
+                ),
                 priority_rationale=final_state.get(
                     "priority_rationale"
                 ),
@@ -917,10 +928,9 @@ async def add_message(
                 title=ticket_title,
                 description=ticket_description,
                 category=cat,
-                priority=final_state.get(
-                    "priority",
-                    "MEDIUM",
-                ).upper(),
+                priority=_resolve_ticket_priority(
+                    final_state.get("priority")
+                ),
                 priority_rationale=final_state.get(
                     "priority_rationale"
                 ),
@@ -1034,7 +1044,9 @@ async def add_message(
                     title=f"[{cat}] {title_snippet}",
                     description=original_issue,
                     category=cat,
-                    priority=final_state.get("priority", "MEDIUM").upper(),
+                    priority=_resolve_ticket_priority(
+                        final_state.get("priority")
+                    ),
                     priority_rationale=final_state.get("priority_rationale"),
                     status=TicketStatus.NEW,
                     department=user.get("department"),

@@ -4,6 +4,7 @@ from src.core.db import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from src.models.ticket import Ticket, TicketStatus
+from src.models.chat import Conversation, ConversationStatus, Message, SenderType
 from src.services.ticket_service import TicketService
 import uuid
 
@@ -46,6 +47,21 @@ async def resolve_ticket(ticket_id: str, user: dict = Depends(RoleChecker(SUPPOR
         raise HTTPException(status_code=404, detail="Ticket not found")
         
     await TicketService.update_status(db, ticket, TicketStatus.RESOLVED, changed_by=user.get("username"))
+
+    if ticket.conversation_id:
+        conv_res = await db.execute(select(Conversation).where(Conversation.id == ticket.conversation_id))
+        conv = conv_res.scalar_one_or_none()
+        if conv:
+            conv.status = ConversationStatus.CLOSED
+            db.add(conv)
+            system_msg = Message(
+                conversation_id=conv.id,
+                sender_type=SenderType.SYSTEM,
+                content="[System] Conversation marked as resolved by Support Engineer."
+            )
+            db.add(system_msg)
+            await db.commit()
+
     return {"status": "success", "ticket_status": TicketStatus.RESOLVED}
 
 @router.post("/{ticket_id}/confirm-resolution")

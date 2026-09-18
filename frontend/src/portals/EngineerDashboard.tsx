@@ -177,6 +177,10 @@ export const EngineerDashboard: React.FC = () => {
       await resolveTicket(selectedTicket.id);
       setActionNotice(`Ticket marked as RESOLVED.`);
       await loadTickets(true);
+      if (selectedTicket.conversation_id) {
+        const msgs = await getConversationMessages(selectedTicket.conversation_id);
+        setConversationMessages(msgs);
+      }
     } catch (err) {
       setActionNotice(err instanceof Error ? `Resolve failed: ${err.message}` : 'Resolve failed.');
     } finally {
@@ -246,7 +250,7 @@ export const EngineerDashboard: React.FC = () => {
       {escalationAlert && (
         <div className="escalation-alert-banner" role="alert">
           <div className="escalation-alert-content">
-            <span className="escalation-alert-badge">🚨 New Escalated Request</span>
+            <span className="escalation-alert-badge">New Escalated Request</span>
             <strong>{escalationAlert.title}</strong>
             <span className="escalation-alert-meta">
               Category: <code>{escalationAlert.category || 'General Support'}</code> • Priority: <code>{escalationAlert.priority || 'MEDIUM'}</code>
@@ -386,7 +390,7 @@ export const EngineerDashboard: React.FC = () => {
                         {isActionLoading ? 'Taking over...' : 'Take Over Chat'}
                       </button>
                     )}
-                    {selectedTicket.status === 'IN_PROGRESS' && (
+                    {(selectedTicket.status === 'IN_PROGRESS' || selectedTicket.status === 'ESCALATED') && (
                       <button
                         className="success-button"
                         onClick={handleResolve}
@@ -452,15 +456,22 @@ export const EngineerDashboard: React.FC = () => {
                       onChange={(e) => setReplyInput(e.target.value)}
                       placeholder={
                         selectedTicket.status === 'ESCALATED'
-                          ? 'Click "Take Over Chat" above to respond directly...'
-                          : 'Type your message to the employee...'
+                          ? 'Click "Take Over Chat" above to enable messaging...'
+                          : selectedTicket.status === 'RESOLVED' || selectedTicket.status === 'CLOSED'
+                            ? 'This ticket is closed.'
+                            : 'Type your message to the employee...'
                       }
-                      disabled={isSending || !selectedTicket.conversation_id}
+                      disabled={isSending || selectedTicket.status !== 'IN_PROGRESS' || !selectedTicket.conversation_id}
                     />
                     <button
                       className="primary-button"
                       type="submit"
-                      disabled={isSending || !replyInput.trim() || !selectedTicket.conversation_id}
+                      disabled={
+                        isSending ||
+                        selectedTicket.status !== 'IN_PROGRESS' ||
+                        !replyInput.trim() ||
+                        !selectedTicket.conversation_id
+                      }
                     >
                       {isSending ? 'Sending...' : 'Send'}
                     </button>

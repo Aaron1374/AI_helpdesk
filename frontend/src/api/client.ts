@@ -1,4 +1,4 @@
-import type { ApiErrorShape, ConversationResponse, LoginResponse, MessageResponse } from './types';
+import type { ApiErrorShape, ConversationResponse, LoginResponse, MessageResponse, SignupResponse} from './types';
 import { getToken } from '../auth/session';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api';
@@ -40,6 +40,25 @@ export function login(username: string, password: string): Promise<LoginResponse
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
+  });
+}
+
+export function signup(
+  name: string,
+  email: string,
+  password: string,
+  role: 'employee' | 'engineer' | 'admin',
+   department: 'hr' | 'sales' | 'ui_ux' | 'ta',
+): Promise<SignupResponse> {
+  return request<SignupResponse>('/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+      role,
+      department,
+    }),
   });
 }
 

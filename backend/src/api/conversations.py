@@ -4,7 +4,7 @@ import uuid
 from typing import List, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

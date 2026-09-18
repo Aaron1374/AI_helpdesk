@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from src.workflow.state import AgentState
 from src.core.llm import get_chat_model
 from src.workflow.constants import MAX_CLARIFICATION_ROUNDS
-from src.workflow.utils.guardrails import sanitize_input, is_it_support_query
+from src.workflow.utils.guardrails import sanitize_input, is_it_support_query, is_gibberish
 
 logger = logging.getLogger(__name__)
 
@@ -25,16 +25,32 @@ PERSONA_VOICE = (
 )
 
 
+def _consecutive_gibberish_count(messages: list, current_input: str) -> int:
+    """Count consecutive gibberish messages ending with current_input."""
+    if not is_gibberish(current_input):
+        return 0
+    count = 1
+    for m in reversed(messages or []):
+        if isinstance(m, HumanMessage) and getattr(m, "content", ""):
+            if is_gibberish(m.content):
+                count += 1
+            else:
+                break
+    return count
+
+
 def _conversation_transcript(state: AgentState, current_input: str) -> str:
     lines = []
     for m in state.get("messages", []) or []:
         if isinstance(m, SystemMessage) and m.content:
             lines.append(f"[{m.content}]")
         elif isinstance(m, HumanMessage) and m.content:
-            lines.append(f"User: {m.content}")
+            if not is_gibberish(m.content):
+                lines.append(f"User: {m.content}")
         elif isinstance(m, AIMessage) and m.content:
             lines.append(f"Assistant: {m.content}")
-    lines.append(f"User: {current_input}")
+    if current_input and not is_gibberish(current_input):
+        lines.append(f"User: {current_input}")
     return "\n".join(lines)
 
 
@@ -45,16 +61,19 @@ def _prior_ai_turns(state: AgentState) -> int:
 def _extract_search_query(state: AgentState, current_input: str) -> str:
     """
     Extract a focused search query for vector retrieval, avoiding conversational
-    boilerplate (like 'Did that resolve the issue?', '1 - Yes', 'hello').
+    boilerplate (like 'Did that resolve the issue?', '1 - Yes', 'hello') and gibberish.
     """
     human_messages = [
         m.content for m in (state.get("messages", []) or [])
-        if isinstance(m, HumanMessage) and getattr(m, "content", "")
+        if isinstance(m, HumanMessage) and getattr(m, "content", "") and not is_gibberish(m.content)
     ]
     if not human_messages:
-        return current_input.strip()
+        return current_input.strip() if not is_gibberish(current_input) else ""
 
     first_problem = human_messages[0].strip()
+    if is_gibberish(current_input):
+        return first_problem
+
     words = current_input.strip().split()
     if len(words) <= 4 or current_input.strip().lower() in {"no", "nope", "2", "still broken", "same issue", "not working"}:
         return first_problem
@@ -68,6 +87,16 @@ _TOPIC_PIVOT_PATTERNS = [
     r"\bforget (it|this)\b.{0,20}\b(order|book|play|tell)\b",
 ]
 _TOPIC_PIVOT_RE = re.compile("|".join(_TOPIC_PIVOT_PATTERNS), re.I)
+
+# Detects when user signals they have a NEW / DIFFERENT issue — must ask
+# for details rather than reusing the previous conversation's search context.
+_NEW_ISSUE_RE = re.compile(
+    r"\b(other issue[s]?|another issue[s]?|different (?:issue|problem|error|topic)"
+    r"|new issue[s]?|couple (?:other|more) (?:issue[s]?|problem[s]?|thing[s]?)"
+    r"|also (?:having|facing|got)|separate (?:issue|problem)"
+    r"|unrelated (?:issue|problem)|something else entirely|one more (?:issue|thing|problem))\b",
+    re.I,
+)
 
 
 def _is_hard_topic_pivot(raw_text: str) -> bool:
@@ -111,6 +140,41 @@ def _transcript_still_on_topic(transcript: str, config: RunnableConfig = None) -
 def preprocess_node(state: AgentState, config: RunnableConfig = None):
     raw_text = (state.get("input", "") or "").strip()
     prior_rounds = _prior_ai_turns(state)
+    messages = state.get("messages", []) or []
+
+    # 1. Gibberish Detection & Handling
+    if is_gibberish(raw_text):
+        gibberish_count = _consecutive_gibberish_count(messages, raw_text)
+        if gibberish_count >= 2:
+            # Gibberish persisted for >= 2 rounds: cleanly terminate session without retrieval, classification, or escalation
+            logger.info("Gibberish persisted for >= 2 rounds. Ending session cleanly without escalation.")
+            return {
+                "needs_clarification": False,
+                "out_of_scope": True,
+                "sanitized_query": "",
+                "search_query": "",
+                "status": "resolved",
+                "escalate": False,
+                "needs_handoff": False,
+                "messages": [AIMessage(content=(
+                    "I was unable to understand your input. Since I haven't received enough "
+                    "clear details to assist with an IT issue, I am closing this session. "
+                    "Please feel free to reach out again whenever you're ready with a description of your issue!"
+                ))],
+            }
+        else:
+            # First gibberish message: politely ask for clear input without corrupting transcript or search query
+            logger.info("Gibberish detected on turn. Prompting user for clear input.")
+            return {
+                "needs_clarification": True,
+                "sanitized_query": "",
+                "search_query": "",
+                "messages": [AIMessage(content=(
+                    "I didn't quite understand that. Could you please provide a clear description "
+                    "of what you're experiencing with your IT issue (such as the device you're using "
+                    "or any error message) so I can assist you?"
+                ))],
+            }
 
     if prior_rounds == 0:
         # Cold open — the only place the empty-greeting and full scope
@@ -162,6 +226,20 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
 
     transcript = _conversation_transcript(state, sanitized)
     search_q = _extract_search_query(state, sanitized)
+
+    # Deterministic new-issue detection: user signals a DIFFERENT problem.
+    # Ask them to describe it rather than recycling the previous topic's search query.
+    if prior_rounds > 0 and _NEW_ISSUE_RE.search(raw_text):
+        logger.info("New-issue intent detected: '%s'. Asking user to describe it.", raw_text)
+        return {
+            "needs_clarification": True,
+            "sanitized_query": sanitize_input(transcript),
+            "search_query": "",  # clear old topic so it doesn't bleed into retrieval
+            "messages": [AIMessage(content=(
+                "Sure — what's the other issue you're running into? "
+                "Please describe it and I'll take a look."
+            ))],
+        }
 
     if prior_rounds >= MAX_CLARIFICATION_ROUNDS:
         return {

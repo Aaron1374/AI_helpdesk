@@ -66,3 +66,60 @@ def test_classify_node_fallback_when_category_missing():
         mock_llm.invoke.assert_called_once()
         assert res["category"] == "software"
         assert res["priority"] == "MEDIUM"
+
+
+def test_is_gibberish_detection():
+    """Verify is_gibberish accurately flags random keyboard mashing and nonsense."""
+    from src.workflow.utils.guardrails import is_gibberish
+
+    # Gibberish examples from user prompts
+    assert is_gibberish("sibdbaskd") is True
+    assert is_gibberish("hs dhwqud") is True
+    assert is_gibberish("w efh whfdde") is True
+    assert is_gibberish("ehfbwhe fuew few") is True
+    assert is_gibberish("ewhf hew f ewf") is True
+    assert is_gibberish("asdfghjkl") is True
+    assert is_gibberish("qwertyuiop") is True
+
+    # Legitimate queries
+    assert is_gibberish("hey am facing wifi issues") is False
+    assert is_gibberish("My VPN is disconnected error 800") is False
+    assert is_gibberish("Password reset not working") is False
+    assert is_gibberish("Dell laptop screen is flickering") is False
+
+
+def test_gibberish_first_time_prompts_user():
+    """Verify single gibberish turn prompts user for clear input without polluting search query."""
+    state = {
+        "input": "sibdbaskd",
+        "messages": [
+            HumanMessage(content="hey am facing wifi issues"),
+            AIMessage(content="Can you describe what specifically is happening with your Wi-Fi?"),
+        ],
+    }
+    res = preprocess_node(state)
+    assert res.get("needs_clarification") is True
+    assert res.get("sanitized_query") == ""
+    assert res.get("search_query") == ""
+    assert "didn't quite understand" in res["messages"][0].content
+
+
+def test_consecutive_gibberish_terminates_cleanly_without_escalation():
+    """Verify 2 consecutive gibberish inputs terminate cleanly without escalation or retrieval."""
+    state = {
+        "input": "hs dhwqud",
+        "messages": [
+            HumanMessage(content="hey am facing wifi issues"),
+            AIMessage(content="Can you describe what specifically is happening with your Wi-Fi?"),
+            HumanMessage(content="sibdbaskd"),
+            AIMessage(content="I didn't quite understand that. Could you please provide a clear description?"),
+        ],
+    }
+    res = preprocess_node(state)
+    assert res.get("out_of_scope") is True
+    assert res.get("needs_clarification") is False
+    assert res.get("status") == "resolved"
+    assert res.get("escalate") is False
+    assert res.get("needs_handoff") is False
+    assert "closing this session" in res["messages"][0].content
+

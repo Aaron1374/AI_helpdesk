@@ -730,6 +730,19 @@ async def add_message(
             db.add(ai_msg)
             responses.append({"sender": "AI", "content": content})
 
+    # 3b. Gibberish session termination — close conversation so subsequent
+    #     messages don't re-trigger the same termination message endlessly.
+    #     Detected by: out_of_scope=True, escalate=False, sanitized_query=""
+    #     (the specific signature set by the >= 2 consecutive gibberish path).
+    if (
+        final_state.get("out_of_scope")
+        and not final_state.get("escalate")
+        and not (final_state.get("sanitized_query") or "").strip()
+        and final_state.get("status") == "resolved"
+    ):
+        conversation.status = ConversationStatus.CLOSED
+        db.add(conversation)
+
     # 4. Handle user confirmation of successful resolution
     #
     # This only fires when the confirmation classifier determines

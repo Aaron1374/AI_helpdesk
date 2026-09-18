@@ -522,7 +522,7 @@ function buildActivity(state?: WorkflowState): string[] {
   if (typeof state.retrieval_score === 'number') {
     if (state.retrieval_score > 0) {
       const pct = (state.retrieval_score * 100).toFixed(1);
-      items.push(`RAG Retrieval Similarity Score: ${pct}% (Cutoff: 72.0%)`);
+      items.push(`RAG Retrieval Similarity Score: ${pct}% (Cutoff: 62.0%)`);
     } else {
       items.push(`RAG Retrieval Similarity Score: 0.0% — Low confidence threshold triggered.`);
     }

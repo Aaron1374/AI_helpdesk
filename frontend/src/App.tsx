@@ -109,7 +109,6 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'employee' | 'engineer' | 'admin'>('employee');
   const [department, setDepartment] = useState<'hr' | 'sales' | 'ui_ux' | 'ta'>('hr');
 
   const [error, setError] = useState('');
@@ -143,7 +142,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           name,
           email,
           password,
-          role,
+          'employee',
           department,
         );
 
@@ -281,42 +280,23 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           </div>
 
           {mode === 'signup' && (
-            <>
-              <div className="neo-field">
-                <label htmlFor="role">Account type</label>
-                <select
-                  id="role"
-                  value={role}
-                  onChange={(event) =>
-                    setRole(
-                      event.target.value as 'employee' | 'engineer' | 'admin',
-                    )
-                  }
-                >
-                  <option value="employee">Employee</option>
-                  <option value="engineer">Engineer</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-
-              <div className="neo-field">
-                <label htmlFor="department">Department</label>
-                <select
-                  id="department"
-                  value={department}
-                  onChange={(event) =>
-                    setDepartment(
-                      event.target.value as 'hr' | 'sales' | 'ui_ux' | 'ta',
-                    )
-                  }
-                >
-                  <option value="hr">HR</option>
-                  <option value="sales">Sales</option>
-                  <option value="ui_ux">UI/UX</option>
-                  <option value="ta">TA</option>
-                </select>
-              </div>
-            </>
+            <div className="neo-field">
+              <label htmlFor="department">Department</label>
+              <select
+                id="department"
+                value={department}
+                onChange={(event) =>
+                  setDepartment(
+                    event.target.value as 'hr' | 'sales' | 'ui_ux' | 'ta',
+                  )
+                }
+              >
+                <option value="hr">HR</option>
+                <option value="sales">Sales</option>
+                <option value="ui_ux">UI/UX</option>
+                <option value="ta">TA</option>
+              </select>
+            </div>
           )}
 
           <div className="neo-field">

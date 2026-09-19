@@ -173,6 +173,26 @@ async def test_signup_conflict_existing_email():
 
 
 @pytest.mark.asyncio
+async def test_signup_rejects_privileged_roles():
+    for privileged_role in ["engineer", "admin", "l1"]:
+        req = SignupRequest(
+            name="Hacker",
+            email=f"{privileged_role}@example.com",
+            password="securepassword123",
+            role=privileged_role,
+        )
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_result
+
+        with pytest.raises(HTTPException) as exc:
+            await signup(data=req, db=mock_db)
+        assert exc.value.status_code == 400
+        assert "restricted to employee accounts" in exc.value.detail
+
+
+@pytest.mark.asyncio
 async def test_get_me_endpoint():
     user = {
         "id": "1234",

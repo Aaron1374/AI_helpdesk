@@ -125,7 +125,12 @@ async def signup(
         )
 
     role_key = (data.role or "employee").strip().lower()
-    role = ROLE_MAP.get(role_key, UserRole.employee)
+    if role_key != "employee":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Public signup is restricted to employee accounts only. Engineer and admin accounts must be provisioned by an administrator.",
+        )
+    role = UserRole.employee
     department = (data.department or "general").strip()
 
     user = User(

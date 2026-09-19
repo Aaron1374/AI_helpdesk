@@ -67,8 +67,8 @@ export function signup(
   name: string,
   email: string,
   password: string,
-  role: 'employee' | 'engineer' | 'admin',
-  department: string,
+  role: 'employee' = 'employee',
+  department: string = 'general',
 ): Promise<SignupResponse> {
   return request<SignupResponse>('/auth/signup', {
     method: 'POST',

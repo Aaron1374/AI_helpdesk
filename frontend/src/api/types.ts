@@ -1,8 +1,11 @@
 export type UserRole = 'employee' | 'l1' | 'l2' | 'support_lead' | 'admin';
 
 export interface AuthUser {
+  id?: string;
+  name?: string;
   email: string;
   role: UserRole;
+  department?: string | null;
 }
 
 export interface LoginResponse {
@@ -18,8 +21,10 @@ export interface SignupResponse {
 }
 
 export interface ApiErrorShape {
-  detail?: string;
+  detail?: string | Array<{ loc?: (string | number)[]; msg?: string; type?: string }> | any;
+  message?: string;
 }
+
 
 export interface ConversationResponse {
   id: string;

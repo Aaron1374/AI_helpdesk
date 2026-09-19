@@ -14,14 +14,34 @@ export class ApiError extends Error {
 }
 
 async function parseError(response: Response): Promise<ApiError> {
-  let payload: ApiErrorShape = {};
+  let message = `Request failed (${response.status})`;
   try {
-    payload = (await response.json()) as ApiErrorShape;
+    const payload = (await response.json()) as ApiErrorShape;
+    if (typeof payload?.detail === 'string') {
+      message = payload.detail;
+    } else if (Array.isArray(payload?.detail)) {
+      message = payload.detail
+        .map((item: any) => {
+          if (typeof item === 'string') return item;
+          const msg = item?.msg || JSON.stringify(item);
+          const field = Array.isArray(item?.loc)
+            ? item.loc.filter((part: any) => part !== 'body').join('.')
+            : '';
+          const cleanMsg = typeof msg === 'string' ? msg.replace(/^Value error,\s*/i, '') : msg;
+          return field ? `${field}: ${cleanMsg}` : cleanMsg;
+        })
+        .join(', ');
+    } else if (payload?.message && typeof payload.message === 'string') {
+      message = payload.message;
+    } else if (payload?.detail && typeof payload.detail === 'object') {
+      message = JSON.stringify(payload.detail);
+    }
   } catch {
     // Use the HTTP status when the server did not return JSON.
   }
-  return new ApiError(payload.detail ?? `Request failed (${response.status})`, response.status);
+  return new ApiError(message, response.status);
 }
+
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -47,8 +67,8 @@ export function signup(
   name: string,
   email: string,
   password: string,
-  role: 'employee' | 'engineer' | 'admin',
-   department: 'hr' | 'sales' | 'ui_ux' | 'ta',
+  role: 'employee' = 'employee',
+  department: string = 'general',
 ): Promise<SignupResponse> {
   return request<SignupResponse>('/auth/signup', {
     method: 'POST',
@@ -60,6 +80,10 @@ export function signup(
       department,
     }),
   });
+}
+
+export function getMe(): Promise<{ user: import('./types').AuthUser }> {
+  return request<{ user: import('./types').AuthUser }>('/auth/me');
 }
 
 export function createConversation(): Promise<ConversationResponse> {

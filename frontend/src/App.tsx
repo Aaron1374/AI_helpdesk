@@ -68,23 +68,12 @@ export function App() {
             </button>
           )}
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              marginLeft: '0.5rem',
-              background: '#f1f5f9',
-              padding: '0.3rem 0.7rem',
-              borderRadius: '6px',
-              fontSize: '0.8rem'
-            }}
-          >
-            <span style={{ color: '#334155', fontWeight: 600 }}>
-              {user.email}
+          <div className="user-pill">
+            <span className="user-pill-name">
+              {user.name || user.email}
             </span>
-            <span style={{ color: '#64748b' }}>
-              ({user.role})
+            <span className="user-pill-role">
+              ({user.role}{user.department ? ` • ${user.department}` : ''})
             </span>
           </div>
 
@@ -120,7 +109,6 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'employee' | 'engineer' | 'admin'>('employee');
   const [department, setDepartment] = useState<'hr' | 'sales' | 'ui_ux' | 'ta'>('hr');
 
   const [error, setError] = useState('');
@@ -154,7 +142,7 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           name,
           email,
           password,
-          role,
+          'employee',
           department,
         );
 
@@ -167,13 +155,15 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
         onLogin(response.user);
       }
     } catch (requestError) {
-      setError(
+      const msg =
         requestError instanceof ApiError
           ? requestError.message
-          : mode === 'signup'
-            ? 'Unable to create account.'
-            : 'Unable to sign in.',
-      );
+          : requestError instanceof Error
+            ? requestError.message
+            : mode === 'signup'
+              ? 'Unable to create account.'
+              : 'Unable to sign in.';
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setIsSubmitting(false);
     }
@@ -182,22 +172,18 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
   return (
     <main className="login-shell">
       <section className="login-panel">
-
-        <div className="brand-lockup login-brand">
-          <span className="brand-mark">IT</span>
-          <span>Helpdesk</span>
+        <div className="neo-brand-header">
+          <div className="neo-brand-emblem">IT</div>
+          <div className="neo-brand-info">
+            <span className="neo-brand-title">Helpdesk</span>
+            <span className="neo-brand-subtitle">Enterprise IT Support</span>
+          </div>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.5rem',
-            marginBottom: '1.5rem',
-          }}
-        >
+        <div className="neo-mode-track">
           <button
             type="button"
-            className={`nav-button ${mode === 'signin' ? 'is-active' : ''}`}
+            className={`neo-mode-tab ${mode === 'signin' ? 'is-active' : ''}`}
             onClick={() => switchMode('signin')}
           >
             Sign in
@@ -205,208 +191,152 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
 
           <button
             type="button"
-            className={`nav-button ${mode === 'signup' ? 'is-active' : ''}`}
+            className={`neo-mode-tab ${mode === 'signup' ? 'is-active' : ''}`}
             onClick={() => switchMode('signup')}
           >
             Sign up
           </button>
         </div>
 
-        <p className="eyebrow">
-          {mode === 'signin' ? 'Secure access' : 'Create account'}
+        <p className="neo-eyebrow">
+          {mode === 'signin' ? 'Secure Access' : 'New Account'}
         </p>
 
-        <h1>
-          {mode === 'signin'
-            ? 'Sign in to support'
-            : 'Create your account'}
+        <h1 className="neo-title">
+          {mode === 'signin' ? 'Sign in to support' : 'Create your account'}
         </h1>
 
-        <p className="page-subtitle">
+        <p className="neo-subtitle">
           {mode === 'signin'
-            ? 'Sign in with your Helpdesk credentials.'
-            : 'Create an account to access the IT Helpdesk.'}
+            ? 'Sign in with your corporate Helpdesk credentials.'
+            : 'Register your account to access enterprise IT self-service.'}
         </p>
 
         {mode === 'signin' && (
-          <div
-            style={{
-              display: 'flex',
-              gap: '0.5rem',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              type="button"
-              className="nav-button"
-              style={{
-                fontSize: '0.8rem',
-                padding: '0.35rem 0.6rem',
-              }}
-              onClick={() => {
-                setEmail('engineer@example.com');
-                setPassword('dev-password');
-              }}
-            >
-              L1 Engineer
-            </button>
+          <div className="neo-quick-box">
+            <span className="neo-quick-title">Quick Demo Login</span>
+            <div className="neo-chips-row">
+              <button
+                type="button"
+                className="neo-chip-btn"
+                onClick={() => {
+                  setEmail('engineer@example.com');
+                  setPassword('dev-password');
+                }}
+              >
+                L1 Engineer
+              </button>
 
-            <button
-              type="button"
-              className="nav-button"
-              style={{
-                fontSize: '0.8rem',
-                padding: '0.35rem 0.6rem',
-              }}
-              onClick={() => {
-                setEmail('employee@example.com');
-                setPassword('dev-password');
-              }}
-            >
-              Employee
-            </button>
+              <button
+                type="button"
+                className="neo-chip-btn"
+                onClick={() => {
+                  setEmail('employee@example.com');
+                  setPassword('dev-password');
+                }}
+              >
+                Employee
+              </button>
 
-            <button
-              type="button"
-              className="nav-button"
-              style={{
-                fontSize: '0.8rem',
-                padding: '0.35rem 0.6rem',
-              }}
-              onClick={() => {
-                setEmail('admin@example.com');
-                setPassword('dev-password');
-              }}
-            >
-              Admin
-            </button>
+              <button
+                type="button"
+                className="neo-chip-btn"
+                onClick={() => {
+                  setEmail('admin@example.com');
+                  setPassword('dev-password');
+                }}
+              >
+                Admin
+              </button>
+            </div>
           </div>
         )}
 
-        <form className="login-form" onSubmit={handleSubmit}>
-
+        <form className="neo-form-group" onSubmit={handleSubmit}>
           {mode === 'signup' && (
-            <>
+            <div className="neo-field">
               <label htmlFor="name">Full name</label>
-
               <input
                 id="name"
-                className="text-field"
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Enter your full name"
+                placeholder="e.g. Jane Doe"
                 required
               />
-            </>
+            </div>
           )}
 
-          <label htmlFor="email">Email</label>
-
-          <input
-            id="email"
-            className="text-field"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            required
-          />
+          <div className="neo-field">
+            <label htmlFor="email">Email address</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
+              required
+            />
+          </div>
 
           {mode === 'signup' && (
-            <>
-              <label htmlFor="role">Account type</label>
-
+            <div className="neo-field">
+              <label htmlFor="department">Department</label>
               <select
-                id="role"
-                className="text-field"
-                value={role}
+                id="department"
+                value={department}
                 onChange={(event) =>
-                  setRole(
-                    event.target.value as
-                      | 'employee'
-                      | 'engineer'
-                      | 'admin',
+                  setDepartment(
+                    event.target.value as 'hr' | 'sales' | 'ui_ux' | 'ta',
                   )
                 }
               >
-                <option value="employee">Employee</option>
-                <option value="engineer">Engineer</option>
-                <option value="admin">Admin</option>
+                <option value="hr">HR</option>
+                <option value="sales">Sales</option>
+                <option value="ui_ux">UI/UX</option>
+                <option value="ta">TA</option>
               </select>
-            </>
+            </div>
           )}
 
-         {mode === 'signup' && (
-  <>
-    <label htmlFor="department">Department</label>
-
-    <select
-      id="department"
-      className="text-field"
-      value={department}
-      onChange={(event) =>
-        setDepartment(
-          event.target.value as 'hr' | 'sales' | 'ui_ux' | 'ta',
-        )
-      }
-    >
-      <option value="hr">HR</option>
-      <option value="sales">Sales</option>
-      <option value="ui_ux">UI/UX</option>
-      <option value="ta">TA</option>
-    </select>
-  </>
-)}
-
-
-          <label htmlFor="password">Password</label>
-
-          <input
-            id="password"
-            className="text-field"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder={
-              mode === 'signup'
-                ? 'Minimum 8 characters'
-                : 'Enter your password'
-            }
-            minLength={mode === 'signup' ? 8 : undefined}
-            required
-          />
+          <div className="neo-field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder={
+                mode === 'signup' ? 'Minimum 8 characters' : 'Enter password'
+              }
+              minLength={mode === 'signup' ? 8 : undefined}
+              required
+            />
+          </div>
 
           {mode === 'signup' && (
-            <>
-              <label htmlFor="confirm-password">
-                Confirm password
-              </label>
-
+            <div className="neo-field">
+              <label htmlFor="confirm-password">Confirm password</label>
               <input
                 id="confirm-password"
-                className="text-field"
                 type="password"
                 value={confirmPassword}
-                onChange={(event) =>
-                  setConfirmPassword(event.target.value)
-                }
-                placeholder="Re-enter your password"
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                placeholder="Re-enter password"
                 minLength={8}
                 required
               />
-            </>
+            </div>
           )}
 
           {error && (
-            <div className="is-error" role="alert">
+            <div className="neo-error-banner" role="alert">
               {error}
             </div>
           )}
 
           <button
-            className="primary-button login-submit"
+            className="neo-submit-btn"
             type="submit"
             disabled={isSubmitting}
           >
@@ -420,40 +350,20 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
           </button>
         </form>
 
-        <p
-          style={{
-            marginTop: '1rem',
-            textAlign: 'center',
-            fontSize: '0.85rem',
-            color: '#64748b',
-          }}
-        >
+        <p className="neo-footer-note">
           {mode === 'signin'
             ? "Don't have an account? "
             : 'Already have an account? '}
-
           <button
             type="button"
+            className="neo-switch-link"
             onClick={() =>
-              switchMode(
-                mode === 'signin' ? 'signup' : 'signin',
-              )
+              switchMode(mode === 'signin' ? 'signup' : 'signin')
             }
-            style={{
-              border: 'none',
-              background: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              fontWeight: 600,
-              color: '#2563eb',
-            }}
           >
-            {mode === 'signin'
-              ? 'Create one'
-              : 'Sign in'}
+            {mode === 'signin' ? 'Create one' : 'Sign in'}
           </button>
         </p>
-
       </section>
     </main>
   );

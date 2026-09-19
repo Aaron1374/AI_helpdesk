@@ -93,20 +93,16 @@ async def list_conversations(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(User).where(User.email == user["username"])
-    )
-
-    account = result.scalar_one_or_none()
-
-    if account is None:
+    try:
+        user_id = uuid.UUID(user["id"])
+    except (KeyError, ValueError):
         return []
 
     from src.models.ticket import Ticket
 
     stmt = (
         select(Conversation)
-        .where(Conversation.user_id == account.id)
+        .where(Conversation.user_id == user_id)
         .order_by(
             Conversation.updated_at.desc(),
             Conversation.created_at.desc(),
@@ -195,24 +191,15 @@ async def create_conversation(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(User).where(User.email == user["username"])
-    )
-
-    account = result.scalar_one_or_none()
-
-    if account is None:
-        account = User(
-            name=user["username"],
-            email=user["username"],
-            hashed_password="development-user",
-            role=UserRole(user.get("role", "employee")),
+    try:
+        user_id = uuid.UUID(user["id"])
+    except (KeyError, ValueError):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid user session",
         )
 
-        db.add(account)
-        await db.flush()
-
-    new_conv = Conversation(user_id=account.id)
+    new_conv = Conversation(user_id=user_id)
 
     db.add(new_conv)
     await db.commit()
@@ -253,12 +240,7 @@ async def get_messages(
         )
 
     # Authorize: user must be conversation owner or support staff
-    user_res = await db.execute(
-        select(User).where(User.email == user["username"])
-    )
-
-    current_user_obj = user_res.scalar_one_or_none()
-
+    user_id_str = str(user.get("id", ""))
     is_support = user.get("role") in {
         "engineer",
         "l1",
@@ -267,10 +249,7 @@ async def get_messages(
         "admin",
     }
 
-    if not is_support and (
-        current_user_obj is None
-        or conversation.user_id != current_user_obj.id
-    ):
+    if not is_support and str(conversation.user_id) != user_id_str:
         raise HTTPException(
             status_code=403,
             detail="Not authorized to view this conversation",
@@ -427,12 +406,7 @@ async def close_conversation(
             detail="Conversation not found",
         )
 
-    user_res = await db.execute(
-        select(User).where(User.email == user["username"])
-    )
-
-    current_user_obj = user_res.scalar_one_or_none()
-
+    user_id_str = str(user.get("id", ""))
     is_support = user.get("role") in {
         "engineer",
         "l1",
@@ -441,10 +415,7 @@ async def close_conversation(
         "admin",
     }
 
-    if not is_support and (
-        current_user_obj is None
-        or conversation.user_id != current_user_obj.id
-    ):
+    if not is_support and str(conversation.user_id) != user_id_str:
         raise HTTPException(
             status_code=403,
             detail="Not authorized to close this conversation",

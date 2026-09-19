@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 
 from src.core.logging import TraceIdMiddleware
 from src.core.observability import flush
+from src.core.db import AsyncSessionLocal
+from src.core.seed import seed_default_users
 
 from src.api.health import router as health_router
 from src.api.auth import router as auth_router
@@ -13,6 +15,8 @@ from src.api.tickets import router as tickets_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    async with AsyncSessionLocal() as session:
+        await seed_default_users(session)
     yield
     flush()
 

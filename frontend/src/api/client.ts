@@ -48,7 +48,7 @@ export function signup(
   email: string,
   password: string,
   role: 'employee' | 'engineer' | 'admin',
-   department: 'hr' | 'sales' | 'ui_ux' | 'ta',
+  department: string,
 ): Promise<SignupResponse> {
   return request<SignupResponse>('/auth/signup', {
     method: 'POST',
@@ -60,6 +60,10 @@ export function signup(
       department,
     }),
   });
+}
+
+export function getMe(): Promise<{ user: import('./types').AuthUser }> {
+  return request<{ user: import('./types').AuthUser }>('/auth/me');
 }
 
 export function createConversation(): Promise<ConversationResponse> {

@@ -81,10 +81,10 @@ export function App() {
             }}
           >
             <span style={{ color: '#334155', fontWeight: 600 }}>
-              {user.email}
+              {user.name || user.email}
             </span>
             <span style={{ color: '#64748b' }}>
-              ({user.role})
+              ({user.role}{user.department ? ` • ${user.department}` : ''})
             </span>
           </div>
 

@@ -1,8 +1,11 @@
 export type UserRole = 'employee' | 'l1' | 'l2' | 'support_lead' | 'admin';
 
 export interface AuthUser {
+  id?: string;
+  name?: string;
   email: string;
   role: UserRole;
+  department?: string | null;
 }
 
 export interface LoginResponse {

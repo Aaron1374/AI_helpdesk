@@ -1,4 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from contextlib import asynccontextmanager
 
 from src.core.logging import TraceIdMiddleware
@@ -27,6 +30,25 @@ app = FastAPI(
 )
 
 app.add_middleware(TraceIdMiddleware)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    messages = []
+    for err in errors:
+        loc = " -> ".join(str(l) for l in err.get("loc", []) if l != "body")
+        msg = err.get("msg", "Invalid value")
+        if isinstance(msg, str) and msg.startswith("Value error, "):
+            msg = msg[len("Value error, "):]
+        messages.append(f"{loc}: {msg}" if loc else str(msg))
+    detail_msg = ", ".join(messages) if messages else "Validation failed"
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=jsonable_encoder({"detail": detail_msg}),
+    )
+
+
 
 app.include_router(health_router, tags=["observability"])
 app.include_router(auth_router)

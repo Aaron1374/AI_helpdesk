@@ -167,13 +167,15 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
         onLogin(response.user);
       }
     } catch (requestError) {
-      setError(
+      const msg =
         requestError instanceof ApiError
           ? requestError.message
-          : mode === 'signup'
-            ? 'Unable to create account.'
-            : 'Unable to sign in.',
-      );
+          : requestError instanceof Error
+            ? requestError.message
+            : mode === 'signup'
+              ? 'Unable to create account.'
+              : 'Unable to sign in.';
+      setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setIsSubmitting(false);
     }

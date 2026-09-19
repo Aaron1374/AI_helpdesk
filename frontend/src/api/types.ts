@@ -21,8 +21,10 @@ export interface SignupResponse {
 }
 
 export interface ApiErrorShape {
-  detail?: string;
+  detail?: string | Array<{ loc?: (string | number)[]; msg?: string; type?: string }> | any;
+  message?: string;
 }
+
 
 export interface ConversationResponse {
   id: string;

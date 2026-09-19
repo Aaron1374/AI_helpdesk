@@ -31,11 +31,19 @@ ROLE_MAP = {
 
 
 class SignupRequest(BaseModel):
-    name: str = Field(min_length=2, max_length=100)
+    name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=128)
     role: Optional[str] = "employee"
     department: Optional[str] = "general"
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        clean = v.strip()
+        if not clean:
+            raise ValueError("Name cannot be empty")
+        return clean
 
     @field_validator("email")
     @classmethod
@@ -44,6 +52,7 @@ class SignupRequest(BaseModel):
         if "@" not in clean or "." not in clean.split("@")[-1]:
             raise ValueError("Invalid email format")
         return clean
+
 
 
 @router.post("/login")

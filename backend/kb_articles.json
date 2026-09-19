@@ -64,7 +64,10 @@
         "download",
         "install",
         "softwaredistribution",
-        "wuauserv"
+        "wuauserv",
+        "0x80070002",
+        "0x80240034",
+        "0x80070422"
       ],
       "severity": "medium"
     }
@@ -80,7 +83,10 @@
         "disk-space",
         "low-storage",
         "update-failed",
-        "cleanup"
+        "cleanup",
+        "0x80070002",
+        "0x80240034",
+        "0x80070422"
       ],
       "severity": "medium"
     }
@@ -96,7 +102,10 @@
         "reboot-loop",
         "update-rollback",
         "winre",
-        "uninstall-update"
+        "uninstall-update",
+        "0x80070002",
+        "0x80240034",
+        "0x80070422"
       ],
       "severity": "high"
     }
@@ -193,7 +202,10 @@
         "windows-old",
         "desktop-empty",
         "lost-files",
-        "profile"
+        "profile",
+        "0x80070002",
+        "0x80240034",
+        "0x80070422"
       ],
       "severity": "high"
     }
@@ -304,7 +316,10 @@
         "print-spooler",
         "service-wont-start",
         "services-msc",
-        "windows-update-service"
+        "windows-update-service",
+        "0x80070002",
+        "0x80240034",
+        "0x80070422"
       ],
       "severity": "medium"
     }
@@ -486,7 +501,7 @@
   },
   {
     "title": "VPN Client Fails to Connect / 'Unable to Establish VPN Connection'",
-    "content": "Problem: A user's VPN client (e.g., Cisco AnyConnect, GlobalProtect) fails to establish a connection to the corporate network, showing a generic connection error.\n\nSymptoms:\n- Error message reads 'Unable to establish VPN connection' or 'Connection attempt has failed'\n- VPN client hangs at 'Connecting...' before timing out\n- User reports 'VPN won't connect' or 'can't get on the VPN'\n- Issue may occur on any network (home Wi-Fi, hotel, mobile hotspot)\n\nResolution Steps:\n1. Confirm the laptop has a working internet connection independent of the VPN by browsing to a public website first.\n2. Restart the VPN client application completely (quit from system tray, not just close the window) and relaunch.\n3. Restart the VPN client's background service via services.msc (e.g., Cisco AnyConnect VPN Agent).\n4. Confirm the correct VPN gateway/server address is selected in the client.\n5. Temporarily disable third-party firewall or security software that may be blocking the VPN tunnel (never disable corporate endpoint protection without following policy).\n6. Try connecting from a different network (e.g., mobile hotspot) to rule out a local network/firewall block on the current network (e.g., hotel Wi-Fi blocking VPN ports).\n7. Escalate to the network team with the exact error text and network location if the issue persists across networks and after client restart.\n\nAffected Systems: Windows 10, Windows 11, macOS, Cisco AnyConnect, GlobalProtect, Zscaler\nCategory: Network / VPN",
+    "content": "Problem: A user's VPN client (e.g., Cisco AnyConnect, GlobalProtect) fails to establish a connection to the corporate network, showing a generic connection error.\n\nSymptoms:\n- Error message reads 'Unable to establish VPN connection' or 'Connection attempt has failed'\n- VPN client hangs at 'Connecting...' before timing out\n- User reports 'VPN won't connect' or 'can't get on the VPN'\n- Issue may occur on any network (home Wi-Fi, hotel, mobile hotspot)\n\nResolution Steps:\n1. Confirm the laptop has a working internet connection independent of the VPN by browsing to a public website first.\n2. Restart the VPN client application completely (quit from system tray, not just close the window) and relaunch.\n3. Restart the VPN client's background service via services.msc (e.g., Cisco AnyConnect VPN Agent).\n4. Confirm the correct VPN gateway/server address is selected in the client.\n5. Temporarily disable third-party firewall or security software that may be blocking the VPN tunnel (never disable corporate endpoint protection without following policy).\n6. Try connecting from a different network (e.g., mobile hotspot) to rule out a local network/firewall block on the current network (e.g., hotel Wi-Fi blocking VPN ports).\n7. Escalate to the network team with the exact error text and network location if the issue persists across networks and after client restart.\n\nAffected Systems: Windows 10, Windows 11, macOS, Cisco AnyConnect, GlobalProtect, Zscaler\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -496,14 +511,19 @@
         "cant-connect-vpn",
         "vpn-client",
         "anyconnect",
-        "globalprotect"
+        "globalprotect",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "high"
     }
   },
   {
     "title": "VPN Authentication Failure / Login Rejected",
-    "content": "Problem: A user can reach the VPN login prompt but their credentials are rejected, preventing the VPN tunnel from establishing even though the same credentials work for other systems.\n\nSymptoms:\n- VPN client shows 'Authentication failed' or 'Login denied' after entering credentials\n- Username/password combination works for email and other company systems\n- User reports 'my VPN says my password is wrong even though it's right'\n- May occur immediately after a password change or MFA enrollment change\n\nResolution Steps:\n1. Confirm the account is not locked out in Active Directory/Entra ID due to repeated failed VPN attempts.\n2. Verify the user is entering the correct username format required by the VPN (e.g., domain\\username vs. email address).\n3. If MFA is required for VPN login, confirm the user is approving the push notification or entering the current one-time code promptly.\n4. Have the user retype the password manually rather than using a saved/cached credential, in case of a stale saved password.\n5. Restart the VPN client and retry after confirming credentials via a successful login to another company system (e.g., email).\n6. Check with identity/security team whether the VPN's authentication backend (RADIUS/LDAP/SAML) is experiencing any known issues.\n7. Escalate to network/security team with timestamps of failed attempts if authentication continues to fail with confirmed-correct credentials.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN",
+    "content": "Problem: A user can reach the VPN login prompt but their credentials are rejected, preventing the VPN tunnel from establishing even though the same credentials work for other systems.\n\nSymptoms:\n- VPN client shows 'Authentication failed' or 'Login denied' after entering credentials\n- Username/password combination works for email and other company systems\n- User reports 'my VPN says my password is wrong even though it's right'\n- May occur immediately after a password change or MFA enrollment change\n\nResolution Steps:\n1. Confirm the account is not locked out in Active Directory/Entra ID due to repeated failed VPN attempts.\n2. Verify the user is entering the correct username format required by the VPN (e.g., domain\\username vs. email address).\n3. If MFA is required for VPN login, confirm the user is approving the push notification or entering the current one-time code promptly.\n4. Have the user retype the password manually rather than using a saved/cached credential, in case of a stale saved password.\n5. Restart the VPN client and retry after confirming credentials via a successful login to another company system (e.g., email).\n6. Check with identity/security team whether the VPN's authentication backend (RADIUS/LDAP/SAML) is experiencing any known issues.\n7. Escalate to network/security team with timestamps of failed attempts if authentication continues to fail with confirmed-correct credentials.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -511,14 +531,19 @@
         "vpn-authentication",
         "vpn-login-failed",
         "authentication-failed",
-        "vpn-password"
+        "vpn-password",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "high"
     }
   },
   {
     "title": "VPN Connects But Cannot Access Internal Resources",
-    "content": "Problem: A user successfully connects to the VPN (shown as connected in the client) but is unable to reach internal resources such as file shares, intranet sites, or internal applications.\n\nSymptoms:\n- VPN client shows 'Connected' with a valid session duration\n- User can browse the public internet normally while connected\n- Internal file shares, intranet sites, or internal apps time out or show 'cannot be reached'\n- User reports 'VPN is connected but I can't get to anything internal'\n\nResolution Steps:\n1. Confirm the VPN client shows an assigned internal IP address (via ipconfig /all) consistent with the corporate VPN subnet.\n2. Test access to an internal resource by IP address rather than hostname to determine if this is a DNS issue over VPN.\n3. Run ipconfig /flushdns after confirming VPN connection to clear any stale DNS entries pointing to non-VPN routes.\n4. Confirm split-tunneling configuration is correct — if split tunneling is misconfigured, internal traffic may be routed outside the VPN tunnel.\n5. Disconnect and reconnect the VPN session to refresh routing tables.\n6. Test from a different network location to rule out local network routing conflicts (e.g., home router using the same subnet as the corporate network).\n7. Escalate to the network team with the internal resource name/IP that is unreachable, as this may indicate a routing or firewall rule issue.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN",
+    "content": "Problem: A user successfully connects to the VPN (shown as connected in the client) but is unable to reach internal resources such as file shares, intranet sites, or internal applications.\n\nSymptoms:\n- VPN client shows 'Connected' with a valid session duration\n- User can browse the public internet normally while connected\n- Internal file shares, intranet sites, or internal apps time out or show 'cannot be reached'\n- User reports 'VPN is connected but I can't get to anything internal'\n\nResolution Steps:\n1. Confirm the VPN client shows an assigned internal IP address (via ipconfig /all) consistent with the corporate VPN subnet.\n2. Test access to an internal resource by IP address rather than hostname to determine if this is a DNS issue over VPN.\n3. Run ipconfig /flushdns after confirming VPN connection to clear any stale DNS entries pointing to non-VPN routes.\n4. Confirm split-tunneling configuration is correct — if split tunneling is misconfigured, internal traffic may be routed outside the VPN tunnel.\n5. Disconnect and reconnect the VPN session to refresh routing tables.\n6. Test from a different network location to rule out local network routing conflicts (e.g., home router using the same subnet as the corporate network).\n7. Escalate to the network team with the internal resource name/IP that is unreachable, as this may indicate a routing or firewall rule issue.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -527,14 +552,19 @@
         "internal-resources",
         "split-tunnel",
         "vpn-routing",
-        "cant-reach-shares"
+        "cant-reach-shares",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "high"
     }
   },
   {
     "title": "VPN Disconnects After Several Minutes of Inactivity",
-    "content": "Problem: A user's VPN connection drops automatically after a period of inactivity or idle time, requiring them to reconnect repeatedly throughout the day.\n\nSymptoms:\n- VPN session disconnects consistently after roughly 10-30 minutes without active use\n- User reports 'my VPN keeps dropping' or 'I have to reconnect every few minutes'\n- Disconnection often coincides with the laptop going to sleep or the screen locking\n- Active file transfers or long-running sessions are interrupted\n\nResolution Steps:\n1. Check the laptop's power/sleep settings and confirm the device is not set to sleep or hibernate quickly while on battery or plugged in.\n2. Check the VPN client's own idle timeout setting, if configurable, and confirm it aligns with company policy.\n3. Disable Wi-Fi adapter power-saving mode (Device Manager > Network Adapter > Power Management) which can interrupt VPN sessions.\n4. Confirm whether the disconnect correlates with screen lock; some VPN clients disconnect on lock by design per security policy — clarify expected behavior with the user.\n5. Update the VPN client to the latest version, as idle-disconnect bugs are sometimes addressed in client updates.\n6. Test on a wired Ethernet connection to rule out Wi-Fi power management as the root cause.\n7. Escalate to the network team if disconnects continue after power settings and client updates, especially if session timeout should be longer per policy.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN",
+    "content": "Problem: A user's VPN connection drops automatically after a period of inactivity or idle time, requiring them to reconnect repeatedly throughout the day.\n\nSymptoms:\n- VPN session disconnects consistently after roughly 10-30 minutes without active use\n- User reports 'my VPN keeps dropping' or 'I have to reconnect every few minutes'\n- Disconnection often coincides with the laptop going to sleep or the screen locking\n- Active file transfers or long-running sessions are interrupted\n\nResolution Steps:\n1. Check the laptop's power/sleep settings and confirm the device is not set to sleep or hibernate quickly while on battery or plugged in.\n2. Check the VPN client's own idle timeout setting, if configurable, and confirm it aligns with company policy.\n3. Disable Wi-Fi adapter power-saving mode (Device Manager > Network Adapter > Power Management) which can interrupt VPN sessions.\n4. Confirm whether the disconnect correlates with screen lock; some VPN clients disconnect on lock by design per security policy — clarify expected behavior with the user.\n5. Update the VPN client to the latest version, as idle-disconnect bugs are sometimes addressed in client updates.\n6. Test on a wired Ethernet connection to rule out Wi-Fi power management as the root cause.\n7. Escalate to the network team if disconnects continue after power settings and client updates, especially if session timeout should be longer per policy.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -543,14 +573,19 @@
         "vpn-timeout",
         "idle-timeout",
         "vpn-drops",
-        "sleep-settings"
+        "sleep-settings",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "medium"
     }
   },
   {
     "title": "VPN Client Fails to Launch or Open",
-    "content": "Problem: The VPN client application does not open at all when launched — no window appears, or it crashes immediately on startup, preventing the user from even attempting to connect.\n\nSymptoms:\n- Double-clicking the VPN client icon produces no visible window\n- VPN client process may appear briefly in Task Manager then disappear\n- User reports 'the VPN app won't open' or 'nothing happens when I click it'\n- May follow a recent Windows Update or VPN client update\n\nResolution Steps:\n1. Check Task Manager to confirm whether the VPN client process is running in the background despite no visible window.\n2. Restart the VPN client's background service via services.msc, then relaunch the application.\n3. Restart the laptop fully and attempt to launch the VPN client again.\n4. Check Event Viewer (Application log) for a crash event tied to the VPN client executable.\n5. Repair or reinstall the VPN client via Control Panel > Programs, or the internal Software Portal.\n6. Confirm the VPN client is not blocked by a recent antivirus/endpoint protection policy update.\n7. Escalate to L2 with the Event Viewer crash details if reinstalling the client does not resolve the launch failure.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN",
+    "content": "Problem: The VPN client application does not open at all when launched — no window appears, or it crashes immediately on startup, preventing the user from even attempting to connect.\n\nSymptoms:\n- Double-clicking the VPN client icon produces no visible window\n- VPN client process may appear briefly in Task Manager then disappear\n- User reports 'the VPN app won't open' or 'nothing happens when I click it'\n- May follow a recent Windows Update or VPN client update\n\nResolution Steps:\n1. Check Task Manager to confirm whether the VPN client process is running in the background despite no visible window.\n2. Restart the VPN client's background service via services.msc, then relaunch the application.\n3. Restart the laptop fully and attempt to launch the VPN client again.\n4. Check Event Viewer (Application log) for a crash event tied to the VPN client executable.\n5. Repair or reinstall the VPN client via Control Panel > Programs, or the internal Software Portal.\n6. Confirm the VPN client is not blocked by a recent antivirus/endpoint protection policy update.\n7. Escalate to L2 with the Event Viewer crash details if reinstalling the client does not resolve the launch failure.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -558,14 +593,19 @@
         "vpn-wont-open",
         "vpn-client-crash",
         "vpn-launch-failure",
-        "vpn-app"
+        "vpn-app",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "medium"
     }
   },
   {
     "title": "VPN Connection Times Out During Handshake",
-    "content": "Problem: A VPN connection attempt hangs at a 'Negotiating' or 'Establishing' stage and eventually fails with a timeout error before completing the connection handshake.\n\nSymptoms:\n- VPN client progress shows 'Negotiating connection' or 'Establishing VPN' and then times out\n- Error message may reference a timeout, such as 'The VPN connection failed due to unsuccessful domain name resolution' or a generic timeout\n- User reports the VPN 'just hangs and then fails' after a long wait\n- May be more common on certain networks (hotel, public Wi-Fi, mobile hotspot) than on trusted networks\n\nResolution Steps:\n1. Confirm the underlying network connection is stable and has reasonable latency before attempting VPN again.\n2. Try connecting to a different VPN gateway/server if multiple options are available in the client.\n3. Check whether the current network blocks the VPN protocol/ports in use (common on hotel or public Wi-Fi networks that restrict UDP/non-standard ports).\n4. Switch the VPN client to a different transport protocol if supported (e.g., TCP fallback instead of UDP) to work around port restrictions.\n5. Restart the VPN client service and relaunch the application before retrying.\n6. Test the connection attempt from a mobile hotspot to isolate whether the current network is blocking the handshake.\n7. Escalate to the network team with the network location and exact timeout message if the handshake consistently fails on trusted/office networks.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN",
+    "content": "Problem: A VPN connection attempt hangs at a 'Negotiating' or 'Establishing' stage and eventually fails with a timeout error before completing the connection handshake.\n\nSymptoms:\n- VPN client progress shows 'Negotiating connection' or 'Establishing VPN' and then times out\n- Error message may reference a timeout, such as 'The VPN connection failed due to unsuccessful domain name resolution' or a generic timeout\n- User reports the VPN 'just hangs and then fails' after a long wait\n- May be more common on certain networks (hotel, public Wi-Fi, mobile hotspot) than on trusted networks\n\nResolution Steps:\n1. Confirm the underlying network connection is stable and has reasonable latency before attempting VPN again.\n2. Try connecting to a different VPN gateway/server if multiple options are available in the client.\n3. Check whether the current network blocks the VPN protocol/ports in use (common on hotel or public Wi-Fi networks that restrict UDP/non-standard ports).\n4. Switch the VPN client to a different transport protocol if supported (e.g., TCP fallback instead of UDP) to work around port restrictions.\n5. Restart the VPN client service and relaunch the application before retrying.\n6. Test the connection attempt from a mobile hotspot to isolate whether the current network is blocking the handshake.\n7. Escalate to the network team with the network location and exact timeout message if the handshake consistently fails on trusted/office networks.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -574,14 +614,19 @@
         "vpn-handshake",
         "negotiating-connection",
         "vpn-hangs",
-        "blocked-ports"
+        "blocked-ports",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "medium"
     }
   },
   {
     "title": "Slow Performance or High Latency While Connected to VPN",
-    "content": "Problem: Applications, file transfers, and browsing become noticeably slower whenever the user is connected to the VPN, even though the underlying internet connection tests normally without VPN.\n\nSymptoms:\n- User reports 'everything is slow when I'm on VPN' or 'VPN makes my internet crawl'\n- Speed test results drop significantly while connected to VPN compared to disconnected\n- Video calls or streaming buffer or lag specifically while VPN is active\n- Local, non-corporate websites may also feel slow if full tunneling is in effect\n\nResolution Steps:\n1. Confirm baseline internet speed without VPN connected to establish a comparison point.\n2. Check whether split tunneling is enabled/expected for this VPN profile — full tunneling routes all traffic (including general browsing) through the VPN, which can reduce speed for non-corporate sites.\n3. Try connecting to a different VPN gateway/region if multiple options are available, as the assigned gateway may be under heavy load.\n4. Close bandwidth-heavy background applications (cloud sync, large downloads) while on VPN.\n5. Test the connection at a different time of day to rule out peak-hour congestion on the VPN gateway.\n6. Update the VPN client to the latest version, as performance improvements are commonly included in updates.\n7. Escalate to the network team with speed test results (with and without VPN) if the discrepancy is significant and persistent.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN",
+    "content": "Problem: Applications, file transfers, and browsing become noticeably slower whenever the user is connected to the VPN, even though the underlying internet connection tests normally without VPN.\n\nSymptoms:\n- User reports 'everything is slow when I'm on VPN' or 'VPN makes my internet crawl'\n- Speed test results drop significantly while connected to VPN compared to disconnected\n- Video calls or streaming buffer or lag specifically while VPN is active\n- Local, non-corporate websites may also feel slow if full tunneling is in effect\n\nResolution Steps:\n1. Confirm baseline internet speed without VPN connected to establish a comparison point.\n2. Check whether split tunneling is enabled/expected for this VPN profile — full tunneling routes all traffic (including general browsing) through the VPN, which can reduce speed for non-corporate sites.\n3. Try connecting to a different VPN gateway/region if multiple options are available, as the assigned gateway may be under heavy load.\n4. Close bandwidth-heavy background applications (cloud sync, large downloads) while on VPN.\n5. Test the connection at a different time of day to rule out peak-hour congestion on the VPN gateway.\n6. Update the VPN client to the latest version, as performance improvements are commonly included in updates.\n7. Escalate to the network team with speed test results (with and without VPN) if the discrepancy is significant and persistent.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -590,7 +635,12 @@
         "vpn-performance",
         "split-tunnel",
         "vpn-latency",
-        "slow-on-vpn"
+        "slow-on-vpn",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "low"
     }
@@ -629,7 +679,7 @@
   },
   {
     "title": "Wrong VPN Profile or Gateway Selected Causing Connection Issues",
-    "content": "Problem: A user has multiple VPN profiles or gateways configured in their client and is inadvertently connecting to the wrong one, resulting in access issues or unexpected routing behavior.\n\nSymptoms:\n- User has access to some resources but not others depending on which profile is selected\n- VPN client dropdown shows multiple gateway/profile options (e.g., regional gateways, test vs. production)\n- User reports inconsistent access 'sometimes I can get to things, sometimes I can't'\n- Issue may follow onboarding to a new project, region change, or team transfer\n\nResolution Steps:\n1. Ask the user which VPN profile/gateway they currently have selected in the client dropdown.\n2. Confirm with the user's manager or access documentation which gateway is correct for their role/location/project.\n3. Have the user switch to the correct profile and reconnect, then retest access to the affected resources.\n4. Remove outdated or unnecessary VPN profiles from the client to reduce future confusion, if permitted by policy.\n5. Check whether the correct profile requires a separate provisioning/access request if the user does not see it as an option at all.\n6. Document which gateway maps to which resource set for the user's reference going forward.\n7. Escalate to the network/access team if the correct profile is not available to the user and needs to be provisioned.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN",
+    "content": "Problem: A user has multiple VPN profiles or gateways configured in their client and is inadvertently connecting to the wrong one, resulting in access issues or unexpected routing behavior.\n\nSymptoms:\n- User has access to some resources but not others depending on which profile is selected\n- VPN client dropdown shows multiple gateway/profile options (e.g., regional gateways, test vs. production)\n- User reports inconsistent access 'sometimes I can get to things, sometimes I can't'\n- Issue may follow onboarding to a new project, region change, or team transfer\n\nResolution Steps:\n1. Ask the user which VPN profile/gateway they currently have selected in the client dropdown.\n2. Confirm with the user's manager or access documentation which gateway is correct for their role/location/project.\n3. Have the user switch to the correct profile and reconnect, then retest access to the affected resources.\n4. Remove outdated or unnecessary VPN profiles from the client to reduce future confusion, if permitted by policy.\n5. Check whether the correct profile requires a separate provisioning/access request if the user does not see it as an option at all.\n6. Document which gateway maps to which resource set for the user's reference going forward.\n7. Escalate to the network/access team if the correct profile is not available to the user and needs to be provisioned.\n\nAffected Systems: Windows 10, Windows 11, macOS, enterprise VPN clients\nCategory: Network / VPN\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -637,7 +687,12 @@
         "vpn-profile",
         "wrong-gateway",
         "vpn-gateway",
-        "multiple-vpn-profiles"
+        "multiple-vpn-profiles",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "low"
     }
@@ -1008,7 +1063,11 @@
         "push-notification",
         "mfa-not-received",
         "authenticator-app",
-        "mfa-approval"
+        "mfa-approval",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "high"
     }
@@ -1024,7 +1083,11 @@
         "verification-code",
         "otp",
         "mfa-rejected",
-        "time-sync"
+        "time-sync",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "medium"
     }
@@ -1040,7 +1103,11 @@
         "new-phone",
         "mfa-reset",
         "lost-authenticator",
-        "security-verification"
+        "security-verification",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "high"
     }
@@ -1056,7 +1123,11 @@
         "qr-code",
         "mfa-enrollment",
         "new-hire",
-        "setup-fails"
+        "setup-fails",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "medium"
     }
@@ -1072,7 +1143,11 @@
         "sso-loop",
         "login-loop",
         "stuck-loading",
-        "sso-not-working"
+        "sso-not-working",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "high"
     }
@@ -1088,7 +1163,11 @@
         "unauthorized",
         "enterprise-application",
         "sso-access",
-        "application-access"
+        "application-access",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "medium"
     }
@@ -1103,7 +1182,11 @@
         "invalid-credentials",
         "non-sso",
         "standalone-app",
-        "login-failed"
+        "login-failed",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "medium"
     }
@@ -1225,14 +1308,18 @@
         "wrong-tenant",
         "wrong-account",
         "identity-provider",
-        "personal-account-prompt"
+        "personal-account-prompt",
+        "aadsts50076",
+        "aadsts50126",
+        "oauth-error",
+        "http-401"
       ],
       "severity": "medium"
     }
   },
   {
     "title": "User Locked Out of VPN or Enterprise App Due to Expired Certificate",
-    "content": "Problem: A user is unable to authenticate to the VPN or a certificate-based enterprise application because their client authentication certificate has expired, and simple password/MFA retries do not resolve it.\n\nSymptoms:\n- VPN or application login fails with a certificate-related error, such as 'certificate has expired' or 'no valid certificate found'\n- Issue often appears suddenly for a user who previously connected without issue\n- User's password and MFA are confirmed correct and not the cause\n- May affect several users at once if certificates were issued in the same batch and expire around the same time\n\nResolution Steps:\n1. Confirm the exact certificate error message and which application/service is reporting it.\n2. Check the device's certificate store (certmgr.msc) for the relevant client certificate and review its expiration date.\n3. If expired, confirm whether the device is enrolled in automatic certificate renewal (common with domain-joined or Intune-managed devices) and whether renewal has simply not yet triggered.\n4. Trigger a manual sync/check-in with the device management platform (e.g., Intune) to prompt certificate renewal if supported.\n5. If automatic renewal does not resolve it, this typically requires re-enrollment of the device with the certificate authority — escalate to the endpoint/identity management team.\n6. Advise the user of expected downtime while the certificate is reissued, and confirm successful VPN/application login once complete.\n7. Escalate to L2/PKI team if multiple users are affected simultaneously, as it may indicate a batch of certificates nearing expiration that requires proactive renewal.\n\nAffected Systems: VPN clients, certificate-based authentication, Intune, PKI\nCategory: Access / Authentication",
+    "content": "Problem: A user is unable to authenticate to the VPN or a certificate-based enterprise application because their client authentication certificate has expired, and simple password/MFA retries do not resolve it.\n\nSymptoms:\n- VPN or application login fails with a certificate-related error, such as 'certificate has expired' or 'no valid certificate found'\n- Issue often appears suddenly for a user who previously connected without issue\n- User's password and MFA are confirmed correct and not the cause\n- May affect several users at once if certificates were issued in the same batch and expire around the same time\n\nResolution Steps:\n1. Confirm the exact certificate error message and which application/service is reporting it.\n2. Check the device's certificate store (certmgr.msc) for the relevant client certificate and review its expiration date.\n3. If expired, confirm whether the device is enrolled in automatic certificate renewal (common with domain-joined or Intune-managed devices) and whether renewal has simply not yet triggered.\n4. Trigger a manual sync/check-in with the device management platform (e.g., Intune) to prompt certificate renewal if supported.\n5. If automatic renewal does not resolve it, this typically requires re-enrollment of the device with the certificate authority — escalate to the endpoint/identity management team.\n6. Advise the user of expected downtime while the certificate is reissued, and confirm successful VPN/application login once complete.\n7. Escalate to L2/PKI team if multiple users are affected simultaneously, as it may indicate a batch of certificates nearing expiration that requires proactive renewal.\n\nAffected Systems: VPN clients, certificate-based authentication, Intune, PKI\nCategory: Access / Authentication\n\nDiagnostic Integration: Run internal diagnostic tool 'vpn_check' to verify gateway reachability, IP lease allocation, and tunnel connectivity for target device.",
     "department": null,
     "metadata": {
       "tags": [
@@ -1240,7 +1327,12 @@
         "client-certificate",
         "vpn-certificate",
         "pki",
-        "certificate-authentication"
+        "certificate-authentication",
+        "error-412",
+        "error-800",
+        "error-691",
+        "handshake-failed",
+        "vpn_check"
       ],
       "severity": "high"
     }
@@ -1558,6 +1650,209 @@
         "flash-drive-not-detected"
       ],
       "severity": "medium"
+    }
+  },
+  {
+    "title": "Workday Portal Time-Off Submission Error and Session Timeout",
+    "content": "Problem: An employee in HR is unable to submit PTO or time-off requests in Workday, receiving a session timeout or submission processing error.\n\nSymptoms:\n- Workday displays 'Your session has expired' or 'Unable to process time-off request'\n- Approvals and submitted leave requests fail to persist in the HR dashboard\n- User reports 'I cannot submit my vacation days in Workday' or 'Workday times out on submission'\n- Affects HR team members managing PTO approvals and employee profile records\n\nResolution Steps:\n1. Check browser cookies and cache for the Workday domain; clear cookies and restart browser session.\n2. Verify the user is authenticated via corporate SSO/Okta and the session token has not expired.\n3. Ensure pop-up blockers or aggressive ad-blockers are disabled for the corporate Workday tenant.\n4. Verify that the employee direct reporting hierarchy and supervisory organization are active in Workday.\n5. If submitting bulk approvals, test submitting single-record requests to isolate validation failures.\n6. Check Workday system status for scheduled tenant maintenance or maintenance windows.\n7. Escalate to HR Systems / Workday Operations with employee ID and screenshot of the error if session persists.\n\nAffected Systems: Workday Cloud ERP, Chrome, Edge, HR Portal\nCategory: Applications / HR Systems",
+    "department": "hr",
+    "metadata": {
+      "tags": [
+        "workday",
+        "pto-error",
+        "time-off",
+        "hr-portal",
+        "session-timeout",
+        "benefits",
+        "workday-timeout"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "BambooHR Benefits Open Enrollment MFA Verification Failure",
+    "content": "Problem: HR personnel attempting to access employee benefits and open enrollment records in BambooHR are blocked by repeated MFA verification prompts or SMS token failure.\n\nSymptoms:\n- BambooHR login loops back to the MFA code prompt after entering valid credentials\n- SMS verification token does not arrive or shows 'Code expired or invalid'\n- User states 'BambooHR MFA is not sending codes' or 'I am locked out of benefits administration'\n- Critical for open enrollment periods and benefits management\n\nResolution Steps:\n1. Confirm the mobile device has active cellular reception and is not filtering automated 2FA shortcodes.\n2. In the login portal, click 'Try another verification method' and select corporate Authenticator app (TOTP) or backup email.\n3. Verify the time synchronization on the mobile device (Settings > Date and Time > Set Automatically) as time drift desynchronizes TOTP tokens.\n4. Check if the HR user mobile phone number is correctly formatted with country code in BambooHR user settings.\n5. Log into Okta/SSO first and launch BambooHR via the SSO chiclet rather than navigating directly to the URL.\n6. Have an HR Admin reset the user BambooHR 2FA method if the registered device was replaced.\n7. Escalate to Identity and Access Management (IAM) if directory sync from Entra ID to BambooHR has stalled.\n\nAffected Systems: BambooHR, Okta SSO, Authenticator 2FA\nCategory: Access / HR",
+    "department": "hr",
+    "metadata": {
+      "tags": [
+        "bamboohr",
+        "mfa-failed",
+        "benefits-portal",
+        "hr-access",
+        "2fa-token",
+        "open-enrollment"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "Salesforce CRM Single Sign-On Access Denied (Error: OAUTH_APP_ACCESS_DENIED)",
+    "content": "Problem: A sales representative or account executive cannot log into Salesforce Lightning CRM via corporate Single Sign-On, receiving error OAUTH_APP_ACCESS_DENIED or 'User does not have required profile assignment'.\n\nSymptoms:\n- Login redirection fails at corporate Okta/Azure SSO page\n- Screen displays 'We cannot log you in because of an authentication error. (OAUTH_APP_ACCESS_DENIED)'\n- User reports 'Salesforce will not let me sign in' or 'Salesforce says access denied'\n- Blocks account management, lead pipeline tracking, and quota updating\n\nResolution Steps:\n1. Confirm the sales representative has an active Salesforce license allocated in Okta/Entra ID User Assignments.\n2. Verify the user is logging into the custom corporate domain (e.g., https://company.lightning.force.com) rather than standard login.salesforce.com.\n3. Clear browser cache or try an incognito window to eliminate stale SAML/OAuth session cookies.\n4. Check if the user recently transitioned roles or regions, which may have removed their Sales Profile assignment.\n5. Verify that the user corporate email matches their Salesforce Federation ID exactly.\n6. Check with Salesforce Admin whether IP restriction ranges or Login Hours policy on the user profile are blocking off-hours access.\n7. Escalate to CRM Operations / Salesforce Admin team with the user email, Salesforce username, and exact error message.\n\nAffected Systems: Salesforce Lightning, Okta SSO, Azure AD\nCategory: Applications / Sales CRM",
+    "department": "sales",
+    "metadata": {
+      "tags": [
+        "salesforce",
+        "oauth_app_access_denied",
+        "sso-failure",
+        "sales-crm",
+        "pipeline",
+        "sales-login"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "HubSpot Sales Extension and Outlook Sync Disconnect",
+    "content": "Problem: The HubSpot Sales Outlook desktop or web add-in disconnects repeatedly, preventing email logging, deal tracking, and sequence automation for sales reps.\n\nSymptoms:\n- HubSpot add-in icon in Outlook appears greyed out or prompts 'Please log in to HubSpot' on every launch\n- Track and Log checkboxes do not stay selected when composing emails\n- User reports 'HubSpot will not track my emails in Outlook' or 'HubSpot keeps signing me out'\n- Deal activities and meeting schedulers fail to sync to HubSpot CRM\n\nResolution Steps:\n1. In Outlook, navigate to File > Manage Add-ins and confirm HubSpot Sales is enabled and not disabled for slow startup.\n2. In HubSpot web app (Settings > General > Email), verify the connected inbox status shows 'Connected' with green indicator.\n3. If disconnected in HubSpot settings, click Reconnect and authorize corporate Microsoft 365 permissions via OAuth.\n4. Clear Outlook add-in cache: delete contents of %LOCALAPPDATA%\\Microsoft\\Office\\16.0\\Wef and restart Outlook.\n5. If using Outlook on Windows, reinstall the HubSpot Sales for Windows tray app from official portal.\n6. Verify user has third-party cookies enabled in default browser, as OAuth tokens require cross-domain cookies.\n7. Escalate to RevOps / IT Productivity team if tenant-level M365 Mailbox permissions require re-consent.\n\nAffected Systems: HubSpot CRM, Microsoft Outlook, Windows 10/11\nCategory: Software / Sales Productivity",
+    "department": "sales",
+    "metadata": {
+      "tags": [
+        "hubspot",
+        "outlook-sync",
+        "sales-extension",
+        "email-tracking",
+        "crm-disconnect",
+        "sales-tools"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "Figma Enterprise Design Seat Revoked and Team Library Sync Conflict",
+    "content": "Problem: A product designer in UI/UX cannot edit team design files in Figma, showing 'View only' status or team library sync conflict errors.\n\nSymptoms:\n- User with previously granted editor permissions now sees 'View only' or 'Ask for edit access' banner\n- Team shared design system components fail to publish or display 'Conflict while syncing library changes'\n- User reports 'I cannot edit Figma files' or 'Figma says view only even though I am a designer'\n- Blocks design handoff, sprint deliverables, and component updates\n\nResolution Steps:\n1. Check the user Figma account email to ensure they are logged into the Enterprise Organization account, not a personal account.\n2. In Figma Admin Console (or via manager approval), verify whether the user Design Seat was downgraded during monthly seat reclamation.\n3. For library sync conflicts: duplicate the local component branch, pull latest library changes, and merge components manually.\n4. Clear Figma desktop app cache: Help > Troubleshooting > Clear Cache and Restart.\n5. If using Figma web, test in Chrome with hardware acceleration enabled (Settings > System > Use graphics acceleration).\n6. If edit seat was reclaimed due to inactivity, submit an IT service request for 'Figma Enterprise Full Design Seat' with design lead approval.\n7. Escalate to Design Operations / IT Software Procurement for immediate seat provisioning.\n\nAffected Systems: Figma Desktop, Figma Web, macOS, Windows 11\nCategory: Applications / Design Tools",
+    "department": "ui_ux",
+    "metadata": {
+      "tags": [
+        "figma",
+        "view-only",
+        "design-seat",
+        "ui-ux",
+        "design-system",
+        "library-sync",
+        "figma-license"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "Adobe Creative Cloud Error 205 (License Verification and Asset Sync Failure)",
+    "content": "Problem: A UI/UX designer opening Photoshop, Illustrator, or After Effects is greeted with Error 205 or 'We were unable to verify your subscription status'.\n\nSymptoms:\n- Creative Cloud desktop app shows Error Code 205 or Error Code 206\n- Design apps launch and immediately quit or switch to 7-day trial mode\n- User reports 'Adobe says my license is expired or not verified' or 'Cannot open Illustrator'\n- Creative Cloud Libraries fail to load cloud assets\n\nResolution Steps:\n1. Ensure the user signs in with 'Company or School Account' (Federated ID / SSO) and NOT 'Personal Account'.\n2. Close all Adobe applications and the Creative Cloud desktop app via Task Manager.\n3. Open Windows Credential Manager (or macOS Keychain) and remove all credential entries containing 'Adobe App Info' or 'Adobe User'.\n4. Relaunch Creative Cloud desktop app and sign in again through corporate Okta/Azure SSO.\n5. Check the host file (C:\\Windows\\System32\\drivers\\etc\\hosts) to ensure no Adobe activation domains are blocked.\n6. If Error 205 persists, run the official Adobe Limited Access Repair Tool to restore secure HTTPS connectivity to Adobe licensing servers.\n7. Escalate to IT Asset Management if the corporate Adobe Enterprise Named User license has expired or needs re-allocation.\n\nAffected Systems: Adobe Creative Cloud, Photoshop, Illustrator, Windows 11, macOS\nCategory: Software / Creative Applications",
+    "department": "ui_ux",
+    "metadata": {
+      "tags": [
+        "adobe",
+        "error-205",
+        "creative-cloud",
+        "license-failed",
+        "photoshop",
+        "illustrator",
+        "ui-ux"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "Greenhouse ATS Candidate Offer Letter E-Sign Integration Failure",
+    "content": "Problem: A recruiter in Talent Acquisition cannot generate or send candidate offer letters through Greenhouse ATS due to e-signature (DocuSign/HelloSign) API integration failure.\n\nSymptoms:\n- Clicking 'Generate Offer Letter' results in 'Error generating document: Integration error 500'\n- E-signature status shows 'Pending sync' indefinitely and candidate does not receive signature request\n- User reports 'Greenhouse will not send the offer letter' or 'DocuSign offer letter failed in Greenhouse'\n- High urgency issue impacting candidate closing and hiring deadlines\n\nResolution Steps:\n1. Verify the offer template fields in Greenhouse: ensure all required custom tokens (Salary, Start Date, Title) are filled in candidate profile.\n2. In Greenhouse > Configure > Dev Center > Integrations, check the status of the DocuSign/HelloSign integration.\n3. If integration token expired, have a Greenhouse Site Admin re-authenticate the e-signature service account.\n4. Check candidate email address for special characters or invalid spaces that reject document delivery.\n5. Test downloading the offer letter as PDF directly from Greenhouse to verify document merge formatting.\n6. Check DocuSign/HelloSign service status dashboard for active API outages.\n7. Escalate immediately to TA Systems Specialist or L2 Helpdesk as High Priority to manually dispatch offer if deadline is imminent.\n\nAffected Systems: Greenhouse ATS, DocuSign API, Talent Acquisition\nCategory: Applications / Recruiting",
+    "department": "ta",
+    "metadata": {
+      "tags": [
+        "greenhouse",
+        "ats",
+        "offer-letter",
+        "docusign",
+        "ta-recruiting",
+        "candidate-offer",
+        "hiring-blocked"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "LinkedIn Recruiter Seat Token Expiration and InMail Sync Error",
+    "content": "Problem: A recruiter in Talent Acquisition cannot search candidates or send InMails in LinkedIn Recruiter, receiving token expiration or 403 Forbidden errors.\n\nSymptoms:\n- LinkedIn Recruiter displays 'Your LinkedIn Recruiter seat session has expired' or prompts for personal password repeatedly\n- InMail messages fail to send or do not log to Greenhouse ATS integration\n- User reports 'Cannot message candidates on LinkedIn Recruiter' or 'Recruiter seat disconnected'\n- Affects active hiring pipelines and candidate outreach\n\nResolution Steps:\n1. Log out of LinkedIn.com completely, clear browser cookies for linkedin.com, and log back in using corporate email.\n2. Access LinkedIn Recruiter via the corporate direct link (https://www.linkedin.com/talent/home) rather than the standard public feed.\n3. Check if corporate SSO authentication is enforced: re-authenticate via company Okta/Azure SSO portal.\n4. In LinkedIn Account Settings, verify that the recruiter contract profile is mapped to the active corporate seat license.\n5. If Greenhouse integration is disconnected, navigate to LinkedIn Recruiter > Integrations > ATS and toggle sync.\n6. Verify with TA Lead whether user Recruiter seat was reassigned or pooled during recruiter seat rotation.\n7. Escalate to TA Operations / IT Software Licensing for LinkedIn seat re-provisioning.\n\nAffected Systems: LinkedIn Recruiter, Chrome, Greenhouse Sync\nCategory: Applications / Recruiting",
+    "department": "ta",
+    "metadata": {
+      "tags": [
+        "linkedin-recruiter",
+        "inmail-sync",
+        "ta-recruiter",
+        "recruiting-seat",
+        "sso-token",
+        "candidate-search"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "Docker Desktop WSL2 Backend Kernel Crash and VHDX Corruption",
+    "content": "Problem: A software engineer on Windows 11 cannot start Docker Desktop, receiving error 'Docker Desktop - Unexpected WSL error' or 'wsl.exe exited with code 4294967295'.\n\nSymptoms:\n- Docker Desktop whale icon in system tray remains red or in 'Docker Desktop is starting...' loop\n- Command line 'docker ps' returns 'error during connect: This error may indicate that the docker daemon is not running'\n- User reports 'Docker will not start on Windows' or 'WSL2 kernel error in Docker'\n- Blocks local service compilation, containerized dev environments, and integration tests\n\nResolution Steps:\n1. Open PowerShell as Administrator and run: wsl --status to inspect default WSL2 version and kernel version.\n2. Run: wsl --update to ensure the WSL2 Linux kernel package is fully updated to latest release.\n3. Shut down all WSL instances cleanly: wsl --shutdown, wait 10 seconds, then restart Docker Desktop.\n4. Check free space on C: drive: WSL2 ext4.vhdx disk image requires at least 25 GB free to expand.\n5. If docker-desktop-data VHDX is corrupt, run Docker Desktop > Troubleshoot (bug icon) > 'Clean / Purge data'.\n6. Verify Hyper-V and Virtual Machine Platform are enabled in Windows Features.\n7. Escalate to Senior Engineering IT / DevOps if nested virtualization or corporate endpoint antivirus is blocking WSL hypervisor calls.\n\nAffected Systems: Docker Desktop, Windows Subsystem for Linux (WSL2), Windows 11\nCategory: Engineering / Development Tools",
+    "department": "engineering",
+    "metadata": {
+      "tags": [
+        "docker",
+        "wsl2",
+        "docker-desktop",
+        "containers",
+        "engineering",
+        "vhdx",
+        "daemon-not-running",
+        "wsl-shutdown"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "AWS IAM Identity Center (SSO) CLI Token Expiration and AssumeRole Denied",
+    "content": "Problem: An engineer running AWS CLI commands receives 'The security token included in the request is expired' or 'AccessDenied: User is not authorized to perform: sts:AssumeRole'.\n\nSymptoms:\n- Terminal commands like 'aws s3 ls' or 'terraform plan' fail with ExpiredToken or AccessDenied\n- Local ~/.aws/sso/cache tokens have exceeded their 8-hour maximum session duration\n- User reports 'AWS CLI says token expired' or 'Terraform cannot authenticate to AWS'\n- Blocks deployment pipelines, cloud infrastructure provisioning, and service debugging\n\nResolution Steps:\n1. In terminal, run: aws sso login --profile <profile_name> to initiate an SSO authentication flow in browser.\n2. Complete the corporate Okta/Azure AD authentication and approve the authorization code in browser.\n3. Verify your active AWS role and account: aws sts get-caller-identity --profile <profile_name>.\n4. If using environment variables, ensure AWS_ACCESS_KEY_ID or AWS_SESSION_TOKEN in terminal do not override SSO config.\n5. If token cache is corrupted, delete files in ~/.aws/sso/cache/ and re-run aws sso login.\n6. If AccessDenied persists after successful login, verify in AWS SSO portal whether user has been added to required AWS Permission Set.\n7. Escalate to Cloud Platform / DevOps team with user ARN and target AWS Account ID if role assignment is missing.\n\nAffected Systems: AWS CLI, AWS IAM Identity Center, Terraform, macOS/Linux/Windows\nCategory: Engineering / Cloud Infrastructure",
+    "department": "engineering",
+    "metadata": {
+      "tags": [
+        "aws",
+        "aws-cli",
+        "sso-login",
+        "assumerole",
+        "expired-token",
+        "engineering",
+        "terraform",
+        "cloud-access"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "GitHub Enterprise SSH Key Authentication Denied (Permission Denied publickey)",
+    "content": "Problem: A developer running 'git push' or 'git clone' against GitHub Enterprise is rejected with error 'Permission denied (publickey). fatal: Could not read from remote repository.'\n\nSymptoms:\n- Git operations over SSH fail with 'git@github.com: Permission denied (publickey)'\n- SSH test command 'ssh -T git@github.com' fails or reports incorrect username\n- User reports 'GitHub rejected my SSH key' or 'Cannot push code to GitHub'\n- Developer was recently onboarded or switched machines\n\nResolution Steps:\n1. Verify SSH agent is running: eval $(ssh-agent -s) and list loaded keys with: ssh-add -l.\n2. If no keys listed, load your private key: ssh-add ~/.ssh/id_ed25519 (or id_rsa).\n3. Check public key on GitHub: cat ~/.ssh/id_ed25519.pub and verify it is registered under GitHub Settings > SSH and GPG keys.\n4. Crucial: Ensure the SSH key is authorized for the corporate GitHub Enterprise Organization (click 'Configure SSO' next to the key).\n5. Check SSH config file (~/.ssh/config) to ensure Host github.com specifies IdentityFile and User git correctly.\n6. Test connectivity with verbose output: ssh -vT git@github.com to identify rejected cipher or missing key.\n7. Escalate to Engineering Ops / DevTools team if GitHub Enterprise organization SAML authorization fails to link to the key.\n\nAffected Systems: Git, GitHub Enterprise, SSH, macOS, Linux, Windows 11\nCategory: Engineering / Version Control",
+    "department": "engineering",
+    "metadata": {
+      "tags": [
+        "github",
+        "ssh-key",
+        "permission-denied-publickey",
+        "git-push",
+        "github-enterprise",
+        "engineering",
+        "ssh-add"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "Kubernetes kubectl TLS Certificate Expired on Staging Cluster",
+    "content": "Problem: An engineer running 'kubectl get pods' or deploying manifests receives 'Unable to connect to the server: x509: certificate has expired or is not yet valid'.\n\nSymptoms:\n- All kubectl commands to staging or dev cluster fail with x509 certificate error\n- Helm charts and k9s fail to connect to the Kubernetes API server\n- User reports 'kubectl certificate expired' or 'Cannot connect to Kubernetes cluster'\n- Blocks engineering deployments and microservice logs inspection\n\nResolution Steps:\n1. Check current kubeconfig context: kubectl config current-context.\n2. Update local cluster credentials using cloud provider CLI:\n   - For EKS: aws eks update-kubeconfig --region <region> --name <cluster_name>\n   - For GKE: gcloud container clusters get-credentials <cluster_name> --region <region>\n   - For AKS: az aks get-credentials --resource-group <rg> --name <cluster_name> --overwrite-existing\n3. Verify your local system clock is accurate (Settings > Date and Time > Sync Now), as clock skew triggers false x509 expiration errors.\n4. Clear cached client certificates in ~/.kube/cache and inspect ~/.kube/config for expired client-certificate-data.\n5. If API server itself has expired control plane certs (e.g. kubeadm cluster), notify DevOps/Platform team immediately.\n6. Test connectivity with: kubectl version --short.\n7. Escalate to Site Reliability Engineering (SRE) / Kubernetes Platform team if cluster-side certificate renewal is required.\n\nAffected Systems: Kubernetes, kubectl, EKS, GKE, AKS, Linux, macOS, Windows\nCategory: Engineering / Kubernetes",
+    "department": "engineering",
+    "metadata": {
+      "tags": [
+        "kubernetes",
+        "kubectl",
+        "x509-certificate",
+        "k8s",
+        "engineering",
+        "devops",
+        "eks",
+        "cluster-access"
+      ],
+      "severity": "high"
     }
   }
 ]

@@ -1854,5 +1854,215 @@
       ],
       "severity": "high"
     }
+  },
+  {
+    "title": "macOS System Extension or Network Filter Blocked in Privacy and Security",
+    "content": "Problem: A macOS user installing or updating corporate endpoint software (GlobalProtect VPN, SentinelOne, CrowdStrike Falcon, or Cisco AnyConnect) is blocked by macOS Gatekeeper with a 'System Extension Blocked' notification.\n\nSymptoms:\n- Notification displays 'System Extension Blocked: A program tried to load new system extensions'\n- VPN client fails to establish virtual network interface or security agent shows 'Disconnected / Inactive'\n- User reports 'My Mac is blocking the VPN extension' or 'GlobalProtect extension blocked in Security settings'\n- Prevents secure tunnel connection and security posture reporting\n\nResolution Steps:\n1. Open macOS System Settings (Apple menu > System Settings).\n2. Navigate to 'Privacy and Security' in the left sidebar.\n3. Scroll down to the 'Security' section where you will find the prompt: 'System software from application was blocked from loading'.\n4. Click the 'Allow' button next to the blocked developer (e.g., Palo Alto Networks, CrowdStrike, Cisco).\n5. Enter administrator credentials when prompted by macOS Touch ID or password.\n6. If prompted to restart your Mac to complete system extension activation, perform a system reboot.\n7. After restart, open the application and confirm the network filter or agent status displays Connected/Protected.\n\nAffected Systems: macOS Sonoma, macOS Sequoia, macOS Ventura, GlobalProtect, CrowdStrike\nCategory: macOS / Security",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "macos",
+        "system-extension-blocked",
+        "gatekeeper",
+        "privacy-security",
+        "macbook",
+        "globalprotect-mac",
+        "crowdstrike-mac",
+        "kernel-extension"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "macOS Login Keychain Password Desynchronization After Domain Password Change",
+    "content": "Problem: After an employee changes their corporate password via Okta or Active Directory, their Mac repeatedly prompts 'The system was unable to unlock your login keychain' or prompts for keychain password on every application launch.\n\nSymptoms:\n- Pop-up prompts: 'login keychain password does not match' or 'com.apple.Safari / Chrome wants to use the login keychain'\n- Entering the new password fails; prompt loops repeatedly\n- User reports 'Mac keeps asking for keychain password after I changed my password'\n- Occurs frequently on enterprise-managed Macs not bound to mobile AD accounts\n\nResolution Steps:\n1. When prompted with 'The system was unable to unlock your login keychain', click 'Update Keychain Password'.\n2. In the 'Old Password' field, enter your PREVIOUS corporate password; in the 'New Password' field, enter your current corporate password.\n3. If you do not remember your old password, open Keychain Access via Spotlight (Cmd + Space > Keychain Access).\n4. Select 'login' keychain from the sidebar, click File > Delete Keychain 'login'.\n5. Click 'Delete References and Files'. Then choose Keychain Access > Settings > 'Reset Default Keychains'.\n6. Enter your new account password to create a fresh, synchronized default keychain.\n7. Restart your Mac to ensure all cloud and corporate credentials bind cleanly to the new keychain.\n\nAffected Systems: macOS Sonoma, macOS Sequoia, macOS Ventura, Okta, Active Directory\nCategory: macOS / Login",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "macos",
+        "keychain",
+        "keychain-password",
+        "keychain-desync",
+        "login-keychain",
+        "mac-password",
+        "macbook-keychain"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "Microsoft Intune Company Portal: Device Does Not Meet Compliance Requirements",
+    "content": "Problem: An employee accessing corporate email, Slack, or cloud resources via browser or desktop client is blocked by Conditional Access with the message 'You cannot get there from here - Your device must be managed and compliant'.\n\nSymptoms:\n- Web resources redirect to Entra ID Conditional Access error page\n- Company Portal app shows red 'Not Compliant' status with exclamation mark\n- User reports 'Company Portal says device is not compliant' or 'Blocked by conditional access on laptop'\n- Can block access to Microsoft 365, Teams, and internal portals\n\nResolution Steps:\n1. Run internal diagnostic tool 'device_check' to inspect endpoint compliance status, BitLocker encryption posture, and OS patch baseline.\n2. Open the 'Company Portal' app on your device and click on your device name, then click 'Check status' or 'Check compliance'.\n3. Review the specific compliance failure reason listed in Company Portal:\n   - If 'BitLocker drive encryption is required': verify BitLocker is turned on via Control Panel > BitLocker Drive Encryption.\n   - If 'Minimum operating system version required': run Windows Update / macOS Software Update to install pending security patches.\n   - If 'Antivirus / Firewall is required': ensure Microsoft Defender / corporate EDR is running and real-time protection is active.\n4. Resolve the identified failure and return to Company Portal > click 'Check access' again.\n5. Allow up to 10-15 minutes for Intune compliance sync to replicate to Microsoft Entra ID Conditional Access.\n6. Restart browser and attempt sign-in to verified corporate application.\n7. Escalate to L2 / Endpoint Management with user device name if Company Portal sync remains in error state.\n\nAffected Systems: Microsoft Intune, Company Portal, Windows 11, macOS, Entra ID\nCategory: Access / Compliance",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "intune",
+        "compliance",
+        "company-portal",
+        "conditional-access",
+        "device_check",
+        "not-compliant",
+        "bitlocker-required",
+        "endpoint-health"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "Outlook Shared Mailbox Not Appearing or Permission Propagation Delay",
+    "content": "Problem: An employee who was recently granted delegate or member permissions to a departmental shared mailbox (e.g., support@company.com, hr-team@company.com) cannot see the mailbox in Outlook desktop or Outlook Web App.\n\nSymptoms:\n- Shared mailbox does not appear in the left folder pane in Outlook desktop\n- Sending as the shared mailbox results in 'You do not have permission to send on behalf of this user'\n- User reports 'I was added to the shared mailbox but it is not showing up in Outlook'\n- Follows recent team onboarding or distribution group modification\n\nResolution Steps:\n1. Confirm replication time: Microsoft 365 Exchange Online automapping can take from 60 minutes up to 24 hours to propagate across Outlook clients.\n2. In Outlook on the Web (https://outlook.office.com): right-click 'Folders' in the left pane, click 'Add shared folder', type the email address of the shared mailbox, and click Add. Web access is typically active within minutes.\n3. In Outlook Desktop (Windows): manually add the mailbox via File > Account Settings > Account Settings > select your account > Change > More Settings > Advanced tab > click Add > enter shared mailbox name > Apply > OK.\n4. Send/Receive update: In Outlook desktop, go to Send / Receive tab > Update Folder > Send/Receive All Folders.\n5. Verify in M365 Admin Center or Exchange Admin Center that the user has both 'Read and manage' (Full Access) and 'Send As' permissions.\n6. Restart Outlook desktop in safe mode once (outlook.exe /safe) to refresh cached M365 profile discovery.\n7. Escalate to Exchange / M365 Administrator if the mailbox does not appear after 24 hours.\n\nAffected Systems: Microsoft 365, Outlook for Windows, Outlook Web App (OWA), Exchange Online\nCategory: Software / Microsoft 365",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "outlook",
+        "shared-mailbox",
+        "automapping",
+        "exchange-online",
+        "mailbox-missing",
+        "send-as-permission",
+        "m365-mailbox"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "New Hire Day-1 Initial Password Setup and First-Time MFA Registration",
+    "content": "Problem: A newly hired employee starting their first day cannot access their corporate account or complete their initial Multi-Factor Authentication (MFA) registration.\n\nSymptoms:\n- Employee receives welcome email with Temporary Access Pass (TAP) or temporary password\n- Sign-in prompt says 'More information required' or loops at initial setup\n- User reports 'I am a new hire and cannot set up my account' or 'How do I register MFA on my first day?'\n- High priority to prevent onboarding delays and orientation blockers\n\nResolution Steps:\n1. Open an incognito/private browser window and navigate to the official setup portal: https://aka.ms/mysecurityinfo.\n2. Enter the corporate email address provided in the onboarding package and the Temporary Access Pass (TAP) provided by HR/IT.\n3. When prompted 'More information required', download the 'Microsoft Authenticator' app on your iOS or Android mobile phone.\n4. Open Microsoft Authenticator on your phone, tap '+' > select 'Work or school account' > tap 'Scan QR code'.\n5. Scan the QR code displayed on the computer screen using the Authenticator app, and enter the two-digit number displayed to verify pairing.\n6. Add a secondary backup verification method (SMS phone number or secondary personal email) for account recovery.\n7. Once MFA is confirmed, create your permanent corporate password meeting company complexity standards (minimum 14 characters, mixed case, numbers, symbols).\n8. Proceed to log into corporate laptop and SSO dashboard.\n\nAffected Systems: Entra ID, Microsoft Authenticator, Onboarding, Okta\nCategory: Access / Onboarding",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "onboarding",
+        "new-hire",
+        "first-time-login",
+        "tap",
+        "temporary-access-pass",
+        "mfa-registration",
+        "initial-password",
+        "day-one"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "Requesting Software Licenses and Application Access via Self-Service Portal",
+    "content": "Problem: An employee needs access to a paid or restricted corporate application (such as GitHub Copilot, Tableau, JetBrains All Products Pack, Zoom Pro, or Lucidchart) and does not know the procurement procedure.\n\nSymptoms:\n- User attempts to log into tool and sees 'You do not have a license assigned to your account' or 'Contact your administrator for access'\n- User asks 'How do I request a GitHub Copilot license?' or 'How do I get access to Tableau?'\n- User submits general helpdesk ticket without required manager budget approval\n\nResolution Steps:\n1. Open the corporate self-service portal (Company Portal app on Windows/Mac, or internal ServiceNow / Jira Service Management catalog).\n2. Navigate to 'Software and Application Requests' catalog.\n3. Search for the required application name (e.g., 'GitHub Copilot', 'JetBrains', 'Tableau Desktop').\n4. Complete the required request form: specify your Cost Center / Department and direct manager email for budget sign-off.\n5. Provide brief business justification for license allocation.\n6. Submit the request: an automated approval email will be routed to your department manager.\n7. Once manager approves in ServiceNow, automated license provisioning triggers via Okta / Entra ID group assignment within 15-30 minutes.\n8. Note on license reclamation: Unused licenses with zero activity over 45 consecutive days are automatically reclaimed per enterprise cost optimization policy.\n\nAffected Systems: Company Portal, ServiceNow, Okta, Entra ID, GitHub Copilot, Tableau\nCategory: Access / Software Procurement",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "software-request",
+        "license-request",
+        "github-copilot",
+        "jetbrains",
+        "tableau",
+        "app-assignment",
+        "self-service",
+        "procurement"
+      ],
+      "severity": "low"
+    }
+  },
+  {
+    "title": "YubiKey Hardware Security Key (FIDO2) PIN Locked or Not Recognized",
+    "content": "Problem: An employee using a YubiKey hardware token for passwordless sign-in or high-assurance MFA receives 'Security key is locked' or the browser fails to detect the security key when touching the sensor.\n\nSymptoms:\n- Browser displays 'PIN blocked' or 'The security key did not respond'\n- YubiKey LED light does not flash or flashes rapidly\n- User reports 'My YubiKey is locked' or 'My laptop is not recognizing my Yubikey security key'\n- Blocks access to privileged environments, AWS console, and code repositories\n\nResolution Steps:\n1. Remove the YubiKey and re-insert into a direct USB-A or USB-C port on the laptop (avoid unpowered USB hubs or worn dongles).\n2. Download and open 'YubiKey Manager' application from corporate self-service or official portal.\n3. In YubiKey Manager, navigate to Applications > FIDO2 / WebAuthn.\n4. If prompted 'PIN is blocked' (occurs after 3-8 consecutive incorrect PIN attempts), the FIDO2 applet must be reset:\n   - Click 'Reset FIDO' in YubiKey Manager (note: this removes registered WebAuthn credentials on the key).\n   - Unplug and re-insert the key, and touch the sensor within 5 seconds to confirm physical presence reset.\n   - Set a new 6 to 8 digit FIDO2 PIN.\n5. Log into corporate Okta / Entra ID portal using backup MFA method (Authenticator app or Temporary Access Pass).\n6. Go to Security Settings > 'Extra Verification' / 'Security Keys' > delete the old key registration and click 'Set up' to register the reset YubiKey.\n7. Test authentication on a test browser tab.\n\nAffected Systems: YubiKey 5 Series, FIDO2/WebAuthn, Okta, Entra ID, Windows, macOS, Linux\nCategory: Access / Security Hardware",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "yubikey",
+        "fido2",
+        "hardware-token",
+        "pin-blocked",
+        "security-key",
+        "yubikey-manager",
+        "webauthn",
+        "mfa-hardware"
+      ],
+      "severity": "high"
+    }
+  },
+  {
+    "title": "Emergency Security Protocol: Lost or Stolen Corporate Device Reporting",
+    "content": "Problem: An employee has had their corporate laptop, tablet, or corporate-enrolled smartphone lost or stolen.\n\nSymptoms:\n- Device was left in transit, stolen from vehicle, or misplaced in public location\n- Immediate risk of unauthorized data access and corporate credential compromise\n- User contacts helpdesk urgently stating 'My laptop was stolen' or 'I lost my company laptop'\n\nResolution Steps:\n1. IMMEDIATE SECURITY ACTION (Helpdesk Agent / User):\n   - Immediately trigger account session revocation in Microsoft Entra ID / Okta (Revoke all active user refresh tokens and sign-in sessions).\n   - In Microsoft Intune / Jamf Pro console, locate the device asset and initiate an immediate 'Remote Wipe' / 'Device Erase' command.\n2. If BitLocker / FileVault was enabled (verified via asset inventory), the device storage is encrypted at rest and cannot be read without recovery keys.\n3. Direct the employee to change their corporate master password immediately from a trusted secondary device.\n4. Ask the employee for the following details for the formal Security Incident Report:\n   - Date, time, and exact location where the device was last seen.\n   - Asset tag number, serial number, and device model (cross-referenced with IT asset management database).\n   - Whether local files containing customer data or confidential code were stored on the machine.\n5. Advise the employee to file a local police report and obtain the Police Incident Number within 24 hours.\n6. Log a High Severity Security Incident ticket with SecOps / CSIRT.\n7. Coordinate expedited replacement laptop provisioning with hardware dispatch team.\n\nAffected Systems: Corporate Laptops, Mobile Devices, Intune Remote Wipe, Security Operations\nCategory: Security / Emergency Incident",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "lost-laptop",
+        "stolen-device",
+        "remote-wipe",
+        "emergency-protocol",
+        "security-incident",
+        "intune-wipe",
+        "asset-theft"
+      ],
+      "severity": "critical"
+    }
+  },
+  {
+    "title": "Slack Huddle or Zoom Call Audio and Camera Blocked by macOS Privacy Permissions (TCC)",
+    "content": "Problem: A Mac user joining a Zoom call, Slack Huddle, or Google Meet can hear audio, but their microphone does not transmit sound and the camera shows a black screen or permission error.\n\nSymptoms:\n- Slack displays 'Microphone access is disabled in System Settings'\n- Zoom reports 'Failed to detect microphone' or video is greyed out\n- User reports 'My mic won't work in Slack or Zoom on Mac' or 'Slack huddle can't hear me'\n- Occurs after macOS upgrade (Sonoma / Sequoia) or fresh application install\n\nResolution Steps:\n1. Open macOS System Settings (Apple Menu > System Settings).\n2. In the left sidebar, click 'Privacy and Security'.\n3. Click on 'Microphone' from the list: locate Slack, Zoom, or your web browser (Chrome/Edge), and ensure the toggle is switched ON (green).\n4. Click on 'Camera' in the same Privacy menu and ensure the toggle is switched ON for the conferencing app.\n5. If Screen Sharing is also failing: scroll down to 'Screen Recording' and verify toggle is enabled.\n6. When modifying TCC permissions, macOS will prompt 'Quit and Reopen' to apply changes; click 'Quit and Reopen'.\n7. If the app is not listed in Microphone settings: open Terminal and reset application permission string: tccutil reset Microphone <app_bundle_id> (e.g., com.tinyspeck.slackmacgap).\n8. Re-join the call and test microphone input level in application audio preferences.\n\nAffected Systems: macOS Sonoma, macOS Sequoia, Slack, Zoom, Google Meet\nCategory: macOS / Audio & Video",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "macos",
+        "slack-huddle",
+        "zoom-microphone",
+        "camera-blocked",
+        "tcc-permissions",
+        "privacy-security-mac",
+        "mac-mic"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "SharePoint Online and OneDrive Document Co-Authoring Lockout (File Locked for Editing)",
+    "content": "Problem: An employee trying to edit an Excel workbook, Word document, or PowerPoint deck stored on SharePoint or OneDrive receives 'File is locked for editing by another user' even when no one else is actively editing.\n\nSymptoms:\n- Office desktop app opens file in 'Read-Only' mode\n- Banner message reads: 'Locked file: [User Name] has this file locked for editing'\n- User reports 'Excel says someone else is editing the file but they closed it hours ago' or 'Cannot save changes to SharePoint file'\n- Blocks collaborative spreadsheet editing and report finalization\n\nResolution Steps:\n1. Open the file in the Office Web App (Excel Online / Word Online via browser); online co-authoring often bypasses client-side cached locks.\n2. Ask the user named in the lock banner to open the file and close it properly to release the cloud lock.\n3. If the named user has already closed it: wait 10-15 minutes for SharePoint Online server-side phantom locks to expire automatically.\n4. Clear the local Office document cache:\n   - Windows: Press Win + R, type %LOCALAPPDATA%\\Microsoft\\Office\\16.0\\OfficeFileCache, and delete cache contents.\n   - Mac: Close Office apps, open Finder > Go > Go to Folder > ~/Library/Containers/com.microsoft.Excel/Data/Library/Caches, and clear cache.\n5. In SharePoint Online library: click the three dots (...) next to the file > Version History to confirm latest saved version was not overwritten.\n6. If file is checked out: select file > click More (...) > Check in, or select Discard Check Out.\n7. Escalate to SharePoint / M365 Admin if tenant lock state requires administrative unlock.\n\nAffected Systems: Microsoft 365, SharePoint Online, OneDrive, Excel, Word\nCategory: Software / Collaboration",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "sharepoint",
+        "onedrive",
+        "file-locked",
+        "co-authoring",
+        "read-only",
+        "excel-locked",
+        "office-cache",
+        "check-in"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "Google Workspace and Google Drive Storage Quota Full or External Sharing Restriction",
+    "content": "Problem: An employee using Google Workspace cannot upload files to Google Drive, receives 'Drive storage full' alerts, or is blocked from sharing files with external partner clients.\n\nSymptoms:\n- Uploads to Google Drive fail with 'Upload failed: Storage quota exceeded'\n- Sharing dialog reports 'Sharing failed: External sharing is restricted by your domain administrator'\n- User reports 'My Google Drive is full' or 'I cannot share Google Doc with outside client'\n- Impacting cross-company project delivery and file transfers\n\nResolution Steps:\n1. For Storage Full errors: Navigate to https://drive.google.com/drive/quota to view files sorted by largest storage consumption.\n2. Check the 'Bin' / 'Trash' in Google Drive and click 'Empty bin' (deleted files continue consuming quota until permanently purged).\n3. Check Google Photos and Gmail storage usage at https://one.google.com/storage to identify whether orphaned video attachments or email archives are consuming pooled space.\n4. If user genuinely requires higher enterprise storage tier, submit an IT service request for Google Workspace Individual Storage Upgrade with manager approval.\n5. For External Sharing Restricted: Verify corporate DLP policy — sharing sensitive files outside corporate domain requires sharing via approved secure portal or requesting an exemption.\n6. For authorized partners: Request partner domain allowlisting via IT Security Service Catalog.\n7. Escalate to Google Workspace Admin for tenant sharing policy adjustments.\n\nAffected Systems: Google Workspace, Google Drive, Gmail, Chrome\nCategory: Software / Cloud Storage",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "google-drive",
+        "storage-full",
+        "google-workspace",
+        "external-sharing",
+        "drive-quota",
+        "empty-trash",
+        "dlp-sharing"
+      ],
+      "severity": "medium"
+    }
+  },
+  {
+    "title": "Jamf Pro MDM Enrollment Profile Expired or Failed to Reconnect on Mac",
+    "content": "Problem: A corporate MacBook displays a notification stating 'Device Enrollment Profile Expired' or fails to receive configuration updates, Wi-Fi certificates, and software pushed via Jamf Self Service.\n\nSymptoms:\n- macOS notification: 'Enrollment profile is about to expire' or 'MDM profile not verified'\n- Jamf Self Service app shows 'Connection Error: Unable to connect to MDM server'\n- User reports 'My Mac says enrollment profile expired' or 'Jamf Self Service is blank'\n- Prevents corporate software distribution and endpoint compliance posture\n\nResolution Steps:\n1. Connect the Mac to a stable internet connection (corporate Ethernet, home Wi-Fi, or phone hotspot) without VPN active.\n2. Open Terminal on the Mac and check current MDM enrollment status by running: sudo profiles status -type enrollment.\n3. Renew the MDM management certificate by running: sudo jamf manage, followed by: sudo jamf recon.\n4. If the certificate has completely expired: run: sudo jamf enroll -prompt, enter corporate admin credentials, and follow the on-screen profile installation.\n5. In macOS System Settings > Privacy and Security > Profiles, verify that 'Jamf MDM Profile' and 'CA Certificate' display 'Verified' with green checkmarks.\n6. Relaunch Jamf Self Service app to verify application catalog repopulates with corporate apps.\n7. Escalate to Apple / Jamf Endpoint Engineering if the Mac serial number requires re-assignment in Apple Business Manager (ABM).\n\nAffected Systems: macOS Sonoma, macOS Sequoia, Jamf Pro, Apple Business Manager\nCategory: macOS / Device Management",
+    "department": null,
+    "metadata": {
+      "tags": [
+        "jamf",
+        "mdm",
+        "macos-management",
+        "enrollment-profile",
+        "jamf-self-service",
+        "apple-business-manager",
+        "mac-enrollment"
+      ],
+      "severity": "high"
+    }
   }
 ]

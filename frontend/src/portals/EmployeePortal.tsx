@@ -288,7 +288,7 @@ export const EmployeePortal: React.FC = () => {
 
       {isHumanTakeover && !isCurrentConvClosed && (
         <div className="is-success" role="status" style={{ marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: 'var(--teal)' }} />
+          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', boxShadow: '0 0 8px rgba(22, 163, 74, 0.6)' }} />
           An L1 Support Engineer is in the chat and assisting you live.
         </div>
       )}

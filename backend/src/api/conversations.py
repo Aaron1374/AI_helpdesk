@@ -64,7 +64,6 @@ async def _load_history(
 ) -> list:
     """
     Load previous USER/AI conversation messages for LangGraph context.
-
     History is bounded and summarized by build_bounded_history().
     SYSTEM messages such as engineer notes and conversation-closure
     messages are intentionally excluded from LLM context.

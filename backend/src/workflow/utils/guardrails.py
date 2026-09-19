@@ -27,7 +27,7 @@ def sanitize_input(text: str) -> str:
     (a known technique for smuggling hidden instructions past a human
     reviewer while an LLM still reads them), stray template markers, raw
     HTML tags (defense in depth), excess whitespace, and a hard length cap.
-
+    
     Preserves internal confirmation state markers if present in message history.
     """
     if not text:
@@ -250,7 +250,7 @@ def is_it_support_query(query: str, use_llm: bool = True, config: RunnableConfig
     trivia_patterns = [
         r"what colour\b", r"what color\b", r"who is\b", r"what is the weather\b",
         r"tell me a joke\b", r"zomato\b", r"swiggy\b", r"uber\b", r"order food\b",
-        r"my personal (phone|mobile)\b", r"my phone wifi\b"
+        r"my personal (phone|mobile)\b", r"my phone wifi\b", r"sex\b",
     ]
     for pattern in trivia_patterns:
         if re.search(pattern, q_lower):

@@ -10,7 +10,7 @@ from src.core.llm import get_chat_model, normalize_content
 
 logger = logging.getLogger(__name__)
 
-# Detects follow-up questions asked mid-confirmation
+# Detects follow-up questions asked mid-confirmation chek
 # (e.g. "how do I check the firewall?", "what does step 3 mean?")
 _FOLLOWUP_QUESTION_RE = re.compile(
     r"\b(how (do|to|can|should)|what (is|does|do|are|should)|where (do|can|is)|why (is|does|would)|when (do|should)|can you (explain|tell|show|help)|could you|please (explain|clarify|tell)|step [0-9]+|which (step|option|one))",

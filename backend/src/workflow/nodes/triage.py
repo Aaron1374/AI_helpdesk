@@ -12,7 +12,7 @@ from src.workflow.utils.guardrails import sanitize_input, is_it_support_query, i
 
 logger = logging.getLogger(__name__)
 
-GREETING_ONLY = {"hi", "hello", "hey", "help", "test", "ok"}
+GREETING_ONLY = {"hi", "hello", "hey", "help", "test", "ok", "so"}
 
 # Hardcoded inline — no persona.py dependency. Same voice used in
 # preprocess's clarifying question and resolve_node's final answer, kept

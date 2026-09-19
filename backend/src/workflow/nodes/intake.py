@@ -1,7 +1,7 @@
 from langchain_core.runnables import RunnableConfig
 from src.workflow.state import AgentState
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
-from src.core.llm import get_chat_model
+from src.core.llm import get_chat_model, normalize_content
 import logging
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ def injection_pre_check_node(state: AgentState, config: RunnableConfig = None):
 
             res = llm.invoke(prompt, config=config)
 
-            verdict = res.content.strip().upper()
+            verdict = normalize_content(getattr(res, "content", res)).strip().upper()
 
             if verdict == "INJECTION":
                 return {

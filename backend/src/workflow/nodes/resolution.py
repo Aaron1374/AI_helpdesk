@@ -8,7 +8,7 @@ from langchain_core.runnables import RunnableConfig
 
 from src.workflow.state import AgentState
 from src.tools.gateway import ToolGateway
-from src.core.llm import get_chat_model
+from src.core.llm import get_chat_model, normalize_content
 from src.workflow.constants import SIMILARITY_THRESHOLD, LLM_TEMPERATURE, LLM_SEED
 from src.workflow.utils.guardrails import select_mock_tool, is_response_from_knowledge_base
 
@@ -121,14 +121,14 @@ def resolve_node(state: AgentState, config: RunnableConfig = None):
         prompt.append(HumanMessage(content=f"Current Issue Details: {sanitized_query}\nEvidence: {json.dumps(evidence, default=str)}"))
 
         response = llm.invoke(prompt, config=config)
-        answer_text = response.content if hasattr(response, "content") else str(response)
+        answer_text = normalize_content(getattr(response, "content", response))
 
         if not is_response_from_knowledge_base(answer_text, evidence):
             logger.warning("LLM response failed knowledge base grounding check. Triggering handoff.")
             return {"needs_handoff": True, "escalate": True, "status": "escalated", "evidence": evidence}
 
         return {
-            "messages": [response if isinstance(response, AIMessage) else AIMessage(content=answer_text)],
+            "messages": [AIMessage(content=answer_text)],
             "evidence": evidence,
             "needs_handoff": False,
             "escalate": False,

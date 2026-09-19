@@ -17,6 +17,7 @@ MAX_INPUT_WORDS = 512
 
 
 from src.workflow.constants import CONFIRM_MARKER, CONFIRM_FINAL_MARKER
+from src.core.llm import normalize_content
 
 def sanitize_input(text: str) -> str:
     """
@@ -71,13 +72,17 @@ def is_response_from_knowledge_base(
     from the supplied documents or tool results.
     """
 
-    if not answer or not answer.strip():
+    if not answer:
+        return False
+
+    answer_str = normalize_content(answer)
+    if not answer_str.strip():
         return False
 
     if not evidence:
         return False
 
-    answer_lower = answer.lower()
+    answer_lower = answer_str.lower()
 
     # Refusal/uncertainty responses should not be treated as grounded answers
     refusal_phrases = [
@@ -119,7 +124,7 @@ def is_response_from_knowledge_base(
                 title_words = {
                     word
                     for word in re.findall(r"\w+", title)
-                    if len(word) > 4
+                    if len(word) > 3 and word not in {"with", "after", "from", "into", "that", "this", "your"}
                 }
 
                 if title_words:
@@ -128,14 +133,14 @@ def is_response_from_knowledge_base(
                         if word in answer_lower
                     )
 
-                    if title_matches >= 2:
+                    if title_matches >= 1:
                         return True
 
                 # Match meaningful content terms
                 content_words = {
                     word
                     for word in re.findall(r"\w+", content)
-                    if len(word) > 5
+                    if len(word) > 4 and word not in {"please", "ensure", "check", "using", "latest"}
                 }
 
                 if content_words:
@@ -145,7 +150,7 @@ def is_response_from_knowledge_base(
                     )
 
                     # Require multiple independent matches
-                    if content_matches >= 3:
+                    if content_matches >= 2:
                         return True
 
         # --------------------------------------------------
@@ -160,23 +165,21 @@ def is_response_from_knowledge_base(
         # Diagnostic tool evidence
         # --------------------------------------------------
         if item.get("source") == "diagnostic_tool":
-            result = item.get("result")
+            tool_name = str(item.get("tool", "")).lower()
+            if tool_name:
+                parts = [p for p in tool_name.split("_") if len(p) > 2]
+                if tool_name in answer_lower or any(p in answer_lower for p in parts):
+                    return True
 
+            result = item.get("result")
             if result:
                 result_text = json.dumps(result, default=str).lower()
-
                 result_words = {
                     word
                     for word in re.findall(r"\w+", result_text)
-                    if len(word) > 4
+                    if len(word) > 3 and word not in {"true", "false", "null", "status", "mocked", "executed"}
                 }
-
-                matches = sum(
-                    1 for word in result_words
-                    if word in answer_lower
-                )
-
-                if matches >= 2:
+                if any(word in answer_lower for word in result_words):
                     return True
 
     # IMPORTANT:
@@ -247,7 +250,7 @@ def is_it_support_query(query: str, use_llm: bool = True, config: RunnableConfig
     trivia_patterns = [
         r"what colour\b", r"what color\b", r"who is\b", r"what is the weather\b",
         r"tell me a joke\b", r"zomato\b", r"swiggy\b", r"uber\b", r"order food\b",
-        r"my mobile\b", r"my personal phone\b", r"my phone wifi\b"
+        r"my personal (phone|mobile)\b", r"my phone wifi\b"
     ]
     for pattern in trivia_patterns:
         if re.search(pattern, q_lower):
@@ -272,7 +275,7 @@ def is_it_support_query(query: str, use_llm: bool = True, config: RunnableConfig
                     "Reply with ONLY 'IN_SCOPE' or 'OUT_OF_SCOPE'."
                 )
                 res = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=q_clean)], config=config)
-                verdict = res.content.strip().upper() if hasattr(res, "content") else str(res).strip().upper()
+                verdict = normalize_content(getattr(res, "content", res)).strip().upper()
                 if "OUT_OF_SCOPE" in verdict:
                     return False
                 if "IN_SCOPE" in verdict:

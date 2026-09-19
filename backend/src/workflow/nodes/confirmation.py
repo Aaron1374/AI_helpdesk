@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 
 from src.workflow.state import AgentState
 from src.workflow.constants import CONFIRM_MARKER, CONFIRM_FINAL_MARKER
-from src.core.llm import get_chat_model
+from src.core.llm import get_chat_model, normalize_content
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ def _classify_confirmation_reply(raw_reply: str, config: RunnableConfig = None) 
                 HumanMessage(content=raw_reply),
             ]
             res = llm.invoke(prompt, config=config)
-            verdict = (res.content or "").strip().upper()
+            verdict = normalize_content(getattr(res, "content", res)).strip().upper()
             if "ESCALATE" in verdict:
                 return "escalate"
             if "YES" in verdict:

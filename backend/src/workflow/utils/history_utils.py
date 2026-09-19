@@ -3,7 +3,7 @@ from typing import List
 
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 
-from src.core.llm import get_chat_model
+from src.core.llm import get_chat_model, normalize_content
 from src.workflow.constants import RECENT_HISTORY_KEEP
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ async def _summarize(older_messages: List[BaseMessage], config=None) -> str:
             HumanMessage(content=transcript),
         ]
         res = await llm.ainvoke(prompt, config=config)
-        return res.content.strip()
+        return normalize_content(getattr(res, "content", res)).strip()
     except Exception as exc:
         logger.warning("History summarization failed, using naive truncation: %s", exc)
         return transcript[:500]

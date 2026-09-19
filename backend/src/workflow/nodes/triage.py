@@ -6,7 +6,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from src.workflow.state import AgentState
-from src.core.llm import get_chat_model
+from src.core.llm import get_chat_model, normalize_content
 from src.workflow.constants import MAX_CLARIFICATION_ROUNDS
 from src.workflow.utils.guardrails import sanitize_input, is_it_support_query
 
@@ -101,7 +101,7 @@ def _transcript_still_on_topic(transcript: str, config: RunnableConfig = None) -
             HumanMessage(content=transcript),
         ]
         res = llm.invoke(prompt, config=config)
-        verdict = (res.content or "").strip().upper()
+        verdict = normalize_content(getattr(res, "content", res)).strip().upper()
         return "ABANDONED" not in verdict
     except Exception as exc:
         logger.warning("Topic-continuity check failed, defaulting to continue: %s", exc)
@@ -194,7 +194,7 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
             HumanMessage(content=transcript),
         ]
         res = llm.invoke(prompt, config=config)
-        content = res.content.strip()
+        content = normalize_content(getattr(res, "content", res)).strip()
         if content.startswith("```json"):
             content = content[7:]
         if content.startswith("```"):
@@ -288,7 +288,7 @@ def classify_node(state: AgentState, config: RunnableConfig = None):
                 HumanMessage(content=text),
             ]
             res = llm.invoke(prompt, config=config)
-            content = res.content.strip()
+            content = normalize_content(getattr(res, "content", res)).strip()
             if content.startswith("```json"):
                 content = content[7:]
             if content.startswith("```"):

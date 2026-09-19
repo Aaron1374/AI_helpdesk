@@ -136,19 +136,14 @@ export const EngineerDashboard: React.FC = () => {
 
   const prevMsgCountRef = useRef<number>(0);
 
+  // Scroll to bottom ONLY when a new message comes through or on initial conversation load
   useEffect(() => {
-    if (conversationMessages.length !== prevMsgCountRef.current) {
+    if (conversationMessages.length > prevMsgCountRef.current) {
       const isFirst = prevMsgCountRef.current === 0;
       prevMsgCountRef.current = conversationMessages.length;
-      if (isFirst) {
-        scrollToBottom(false);
-      } else if (consoleBodyRef.current) {
-        const { scrollTop, scrollHeight, clientHeight } = consoleBodyRef.current;
-        const isNearBottom = scrollHeight - scrollTop - clientHeight < 150;
-        if (isNearBottom) {
-          scrollToBottom(true);
-        }
-      }
+      scrollToBottom(!isFirst);
+    } else if (conversationMessages.length < prevMsgCountRef.current) {
+      prevMsgCountRef.current = conversationMessages.length;
     }
   }, [conversationMessages]);
 

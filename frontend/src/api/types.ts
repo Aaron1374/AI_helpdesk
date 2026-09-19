@@ -11,6 +11,12 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+export interface SignupResponse {
+  access_token: string;
+  token_type: 'bearer';
+  user: AuthUser;
+}
+
 export interface ApiErrorShape {
   detail?: string;
 }

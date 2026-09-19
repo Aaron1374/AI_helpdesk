@@ -294,3 +294,146 @@ def is_it_support_query(query: str, use_llm: bool = True, config: RunnableConfig
     return False
 
 
+_COMMON_SHORT_WORDS = {
+    "a", "i", "to", "in", "it", "is", "be", "as", "at", "so", "we", "he", "by", "or",
+    "on", "do", "if", "me", "my", "up", "an", "go", "no", "us", "am", "ok", "hi", "hey",
+}
+
+_COMMON_IT_TERMS = {
+    "vpn", "wifi", "wi-fi", "sso", "mfa", "2fa", "pc", "mac", "ip", "dns", "usb",
+    "lan", "wan", "os", "ios", "hdmi", "ram", "cpu", "gpu", "bios", "bsod", "ssl",
+    "tls", "ssh", "ftp", "http", "https", "url", "api", "id", "app", "ui", "cli",
+    "cmd", "gui", "kb", "mb", "gb", "tb", "ping", "log", "net", "dev", "sys",
+    # Common device/platform/OS names that contain legitimate consonant clusters
+    "laptop", "desktop", "smartphone", "android", "windows", "linux", "iphone",
+    "ipad", "tablet", "printer", "monitor", "keyboard", "bluetooth", "ethernet",
+    "internet", "browser", "chrome", "firefox", "outlook", "office", "teams",
+    "microsoft", "google", "apple", "software", "hardware", "network", "wireless",
+    "password", "username", "account", "screen", "display", "device", "system",
+    "server", "client", "service", "process", "program", "update", "install",
+    "driver", "adapter", "router", "switch", "firewall", "antivirus", "backup",
+    "remote", "access", "login", "logout", "reboot", "restart", "shutdown",
+    "connect", "disconnect", "upload", "download", "storage", "memory", "battery",
+    "charger", "cable", "port", "slot", "disk", "drive", "folder", "file",
+    "email", "inbox", "calendar", "meeting", "invite", "ticket", "support",
+    "corporate", "enterprise", "policy", "compliance", "certificate", "domain",
+    "active", "directory", "registry", "settings", "config", "configuration",
+}
+
+
+# Matches hex escape sequences like \x15, \x03, \x1F in error messages
+_HEX_ESCAPE_RE = re.compile(r"\\x[0-9a-fA-F]{2}")
+# Matches URLs/IPs so they don't pollute word analysis
+_URL_IP_RE = re.compile(
+    r"https?://[^\s]+|[0-9]{1,3}(?:\.[0-9]{1,3}){3}(?::[0-9]+)?(?:/[^\s]*)?"
+)
+# Error messages typically contain these patterns — fast-pass as not gibberish
+_ERROR_MSG_RE = re.compile(
+    r"\b(error|exception|failed|failure|daemon|response|malformed|\bwarning\b|traceback|\bconn(?:ection)?\b|unauthorized|forbidden|timeout|refused|\bfatal\b)\b",
+    re.I,
+)
+
+
+def is_gibberish(text: str) -> bool:
+    """
+    Detects random keystroke mashing, nonsense character sequences, or unpronounceable gibberish.
+    Returns True if the text is deemed meaningless gibberish, False for legitimate text.
+
+    Correctly handles technical error messages (Docker, HTTP, system errors) that may
+    contain hex escape sequences, IP addresses, or error codes.
+    """
+    if not text:
+        return True
+
+    clean = text.strip()
+
+    # Fast-pass: looks like a system/application error message — definitely not gibberish
+    if _ERROR_MSG_RE.search(clean):
+        return False
+
+    # Strip hex escape sequences (\x15, \x03, etc.) before word analysis
+    # to prevent \xNN from contributing stray 'x' characters
+    clean_for_analysis = _HEX_ESCAPE_RE.sub(" ", clean)
+    # Strip URLs and IP addresses too
+    clean_for_analysis = _URL_IP_RE.sub(" ", clean_for_analysis)
+
+    words = re.findall(r"[a-zA-Z]+", clean_for_analysis.lower())
+    if not words:
+        return len(clean) > 0 and not any(c.isalnum() for c in clean)
+
+    total_alpha_chars = sum(len(w) for w in words)
+    if total_alpha_chars == 0:
+        return True
+
+    # Fast check for keyboard mashing patterns
+    mash_patterns = [
+        r"(asdf|sdfg|dfgh|fghj|ghjk|hjkl|jkl|qwerty|werty|ertyu|rtyui|tyuio|yuio|zxcvb|xcvbn|cvbnm)",
+        r"(qazwsx|wsxedc|edcrfv|rfvtgb|tgbyhn|yhnujm|ujmik|ikol)",
+        r"(.)\1{3,}",  # 4+ repeated characters like 'aaaa', 'zzzz'
+    ]
+    for pattern in mash_patterns:
+        if re.search(pattern, clean.lower()):
+            return True
+
+    vowels = set("aeiouy")
+    invalid_word_count = 0
+    invalid_chars_count = 0
+    has_severe_consonant_cluster = False
+
+    for w in words:
+        if w in _COMMON_SHORT_WORDS or w in _COMMON_IT_TERMS:
+            continue
+
+        is_word_invalid = False
+
+        # Single letter words other than 'a', 'i', and common abbreviations
+        if len(w) == 1 and w not in {"a", "i", "x", "e", "v"}:
+            is_word_invalid = True
+
+        # Words of length 2 with no vowels (e.g. 'hs', 'w')
+        elif len(w) == 2 and not any(c in vowels for c in w):
+            is_word_invalid = True
+
+        # Words of length >= 3 with no vowels at all (e.g. 'dfg', 'whfdd')
+        elif len(w) >= 3 and not any(c in vowels for c in w):
+            is_word_invalid = True
+
+        # 4+ consecutive consonants unless known valid cluster
+        # Threshold is 5+ to avoid false-positives on real compound words
+        # like 'smartphone' (rtph), 'strength' (ngth), 'throughout' (ghth), etc.
+        else:
+            consonant_cluster = re.search(r"[bcdfghjklmnpqrstvwxz]{5,}", w)
+            if consonant_cluster:
+                cluster = consonant_cluster.group(0)
+                if cluster not in {"ngth", "nstr", "rthm", "tsch", "ndst", "xplo"}:
+                    is_word_invalid = True
+                    has_severe_consonant_cluster = True
+
+            # Unnatural consonant trigrams in English (on any word length)
+            if not is_word_invalid and re.search(r"(bdb|skd|dhw|hdw|hfd|whf|fbw|hfb|qwe|wqu|ewh|zxc|xcv|cvb|vbn|bnm)", w):
+                is_word_invalid = True
+
+            if not is_word_invalid and len(w) >= 5:
+                # Vowel to consonant ratio check for words >= 5 chars
+                v_count = sum(1 for c in w if c in vowels)
+                ratio = v_count / len(w)
+                if ratio < 0.18 or ratio > 0.82:
+                    is_word_invalid = True
+
+        if is_word_invalid:
+            invalid_word_count += 1
+            invalid_chars_count += len(w)
+
+    if has_severe_consonant_cluster:
+        return True
+
+    if invalid_word_count > 0:
+        if (invalid_word_count / len(words)) >= 0.34:
+            return True
+        if total_alpha_chars > 0 and (invalid_chars_count / total_alpha_chars) >= 0.35:
+            return True
+
+    return False
+
+
+

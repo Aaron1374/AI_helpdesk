@@ -2457,3 +2457,71 @@ h1 {
     align-items: center;
   }
 }
+
+/* Password Rules Prompt Card & Validation Hints */
+.password-rules-card {
+  margin: 12px 0 16px;
+  padding: 14px 16px;
+  background: rgba(244, 241, 235, 0.65);
+  border: 1px solid rgba(216, 211, 200, 0.8);
+  border-radius: 12px;
+  box-shadow: inset 2px 2px 5px #D8D3C8, inset -2px -2px 5px #FFFFFF;
+}
+
+.password-rules-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #78716C;
+  margin-bottom: 10px;
+}
+
+.password-rules-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #78716C;
+  transition: color 180ms ease;
+}
+
+.rule-item.is-satisfied {
+  color: #15803D;
+  font-weight: 600;
+}
+
+.rule-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #A8A29E;
+}
+
+.rule-item.is-satisfied .rule-icon {
+  color: #15803D;
+}
+
+.field-hint {
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 4px;
+}
+
+.error-hint {
+  color: #DC2626;
+  font-weight: 500;
+}

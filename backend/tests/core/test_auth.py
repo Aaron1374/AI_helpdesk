@@ -127,9 +127,9 @@ async def test_login_valid_credentials():
 @pytest.mark.asyncio
 async def test_signup_creates_new_user():
     req = SignupRequest(
-        name="New Employee",
+        name="NewEmployee",
         email="new@example.com",
-        password="securepassword123",
+        password="SecurePass123!",
         role="employee",
         department="HR",
     )
@@ -147,7 +147,7 @@ async def test_signup_creates_new_user():
     res = await signup(data=req, db=mock_db)
     assert "access_token" in res
     assert res["user"]["email"] == "new@example.com"
-    assert res["user"]["name"] == "New Employee"
+    assert res["user"]["name"] == "NewEmployee"
     assert res["user"]["role"] == "employee"
     assert res["user"]["department"] == "HR"
     assert mock_db.add.called
@@ -157,9 +157,9 @@ async def test_signup_creates_new_user():
 @pytest.mark.asyncio
 async def test_signup_conflict_existing_email():
     req = SignupRequest(
-        name="Duplicate User",
+        name="DuplicateUser",
         email="existing@example.com",
-        password="securepassword123",
+        password="SecurePass123!",
     )
 
     mock_db = AsyncMock()
@@ -178,7 +178,7 @@ async def test_signup_rejects_privileged_roles():
         req = SignupRequest(
             name="Hacker",
             email=f"{privileged_role}@example.com",
-            password="securepassword123",
+            password="SecurePass123!",
             role=privileged_role,
         )
         mock_db = AsyncMock()
@@ -190,6 +190,66 @@ async def test_signup_rejects_privileged_roles():
             await signup(data=req, db=mock_db)
         assert exc.value.status_code == 400
         assert "restricted to employee accounts" in exc.value.detail
+
+
+def test_signup_name_validation():
+    # Disallow spaces
+    with pytest.raises(ValueError, match="English letters with no spaces"):
+        SignupRequest(name="John Doe", email="john@example.com", password="SecurePass123!")
+
+    # Disallow numbers
+    with pytest.raises(ValueError, match="English letters with no spaces"):
+        SignupRequest(name="John123", email="john@example.com", password="SecurePass123!")
+
+    # Disallow special characters
+    with pytest.raises(ValueError, match="English letters with no spaces"):
+        SignupRequest(name="John!", email="john@example.com", password="SecurePass123!")
+
+    # Allow valid single-word English letters
+    valid_req = SignupRequest(name="John", email="john@example.com", password="SecurePass123!")
+    assert valid_req.name == "John"
+
+
+def test_signup_password_validation():
+    # Too short
+    with pytest.raises(ValueError, match="at least 8 characters"):
+        SignupRequest(name="John", email="john@example.com", password="Sec1!")
+
+    # Missing uppercase
+    with pytest.raises(ValueError, match="at least 1 uppercase"):
+        SignupRequest(name="John", email="john@example.com", password="securepass123!")
+
+    # Missing lowercase
+    with pytest.raises(ValueError, match="at least 1 lowercase"):
+        SignupRequest(name="John", email="john@example.com", password="SECUREPASS123!")
+
+    # Missing number
+    with pytest.raises(ValueError, match="at least 1 number"):
+        SignupRequest(name="John", email="john@example.com", password="SecurePassword!")
+
+    # Missing special character
+    with pytest.raises(ValueError, match="at least 1 special character"):
+        SignupRequest(name="John", email="john@example.com", password="SecurePassword123")
+
+    # Contains name
+    with pytest.raises(ValueError, match="must not contain your name"):
+        SignupRequest(name="John", email="john@example.com", password="SecureJohn123!")
+
+    # Contains email
+    with pytest.raises(ValueError, match="must not contain your email"):
+        SignupRequest(name="Alice", email="john@example.com", password="Securejohn123!")
+
+    # Common password
+    with pytest.raises(ValueError, match="common passwords"):
+        SignupRequest(name="Alice", email="alice@example.com", password="Password123!")
+
+    # Birth year / easily guessed year
+    with pytest.raises(ValueError, match="birthday or year"):
+        SignupRequest(name="Alice", email="alice@example.com", password="SecurePass1995!")
+
+    # Easily guessed company keyword
+    with pytest.raises(ValueError, match="company or role names"):
+        SignupRequest(name="Alice", email="alice@example.com", password="SecureHelpdesk1!")
 
 
 @pytest.mark.asyncio

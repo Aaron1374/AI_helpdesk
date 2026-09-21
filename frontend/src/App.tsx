@@ -121,6 +121,40 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
     setConfirmPassword('');
   }
 
+  const isNameValid = !name || /^[a-zA-Z]+$/.test(name.trim());
+
+  const passwordRules = [
+    { id: 'length', label: 'Minimum 8 characters', met: password.length >= 8 },
+    { id: 'uppercase', label: 'At least 1 uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+    { id: 'lowercase', label: 'At least 1 lowercase letter (a-z)', met: /[a-z]/.test(password) },
+    { id: 'number', label: 'At least 1 number (0-9)', met: /[0-9]/.test(password) },
+    { id: 'special', label: 'At least 1 special character (! @ # $ % ^ & *)', met: /[!@#$%^&*]/.test(password) },
+    {
+      id: 'userEmail',
+      label: 'Must not contain your name or email',
+      met: password.length > 0 &&
+        !(name.trim() && password.toLowerCase().includes(name.trim().toLowerCase())) &&
+        !(email.trim() && password.toLowerCase().includes(email.trim().toLowerCase())),
+    },
+    {
+      id: 'commonPw',
+      label: 'Must not use common passwords (e.g. Password123!)',
+      met: password.length > 0 &&
+        !['password', 'password123', 'password123!', 'pass1234!', '12345678', 'qwertyuiop', 'admin123!'].some(
+          (cp) => password.toLowerCase() === cp || password.toLowerCase().includes(cp),
+        ),
+    },
+    {
+      id: 'easilyGuessed',
+      label: 'Must not contain easily guessed info (birthyear, company/role names)',
+      met: password.length > 0 &&
+        !/(19\d\d|20\d\d)/.test(password) &&
+        !['company', 'helpdesk', 'adrian', 'employee', 'admin', 'support', 'enterprise', 'corporate', department].some(
+          (term) => term && password.toLowerCase().includes(term.toLowerCase()),
+        ),
+    },
+  ];
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -128,13 +162,19 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
 
     try {
       if (mode === 'signup') {
+        if (!name.trim() || !/^[a-zA-Z]+$/.test(name.trim())) {
+          setError('Name must contain only English letters with no spaces or special characters.');
+          return;
+        }
+
         if (password !== confirmPassword) {
           setError('Passwords do not match.');
           return;
         }
 
-        if (password.length < 8) {
-          setError('Password must be at least 8 characters.');
+        const unmet = passwordRules.find((rule) => !rule.met);
+        if (unmet) {
+          setError(`Password rule failed: ${unmet.label}`);
           return;
         }
 
@@ -261,9 +301,14 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
                 type="text"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="e.g. Jane Doe"
+                placeholder="e.g. Jane (letters only, no spaces)"
                 required
               />
+              {!isNameValid && (
+                <span className="field-hint error-hint">
+                  Only English letters allowed (no spaces, numbers, or symbols).
+                </span>
+              )}
             </div>
           )}
 
@@ -307,12 +352,32 @@ function LoginScreen({ onLogin }: { onLogin: (user: AuthUser) => void }) {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder={
-                mode === 'signup' ? 'Minimum 8 characters' : 'Enter password'
+                mode === 'signup' ? 'Create strong password' : 'Enter password'
               }
               minLength={mode === 'signup' ? 8 : undefined}
               required
             />
           </div>
+
+          {mode === 'signup' && (
+            <div className="password-rules-card" aria-live="polite">
+              <div className="password-rules-header">Password Requirements</div>
+              <ul className="password-rules-list">
+                {passwordRules.map((rule) => {
+                  const isMet = password.length > 0 ? rule.met : false;
+                  return (
+                    <li
+                      key={rule.id}
+                      className={`rule-item ${isMet ? 'is-satisfied' : ''}`}
+                    >
+                      <span className="rule-icon">{isMet ? '✓' : '•'}</span>
+                      <span className="rule-label">{rule.label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
 
           {mode === 'signup' && (
             <div className="neo-field">

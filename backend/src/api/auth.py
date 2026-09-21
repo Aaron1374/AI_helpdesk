@@ -1,9 +1,10 @@
+import re
 from datetime import timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from passlib.exc import UnknownHashError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +30,18 @@ ROLE_MAP = {
     "admin": UserRole.admin,
 }
 
+COMMON_PASSWORDS = {
+    "password", "password123", "password123!", "password1!",
+    "pass1234!", "12345678", "123456789", "qwertyuiop",
+    "admin123!", "welcome123!", "letmein123!", "p@ssword123!",
+    "iloveyou123!", "changeit123!", "password@123", "admin@123",
+}
+
+EASILY_GUESSED_TERMS = {
+    "company", "helpdesk", "adrian", "employee", "admin",
+    "support", "enterprise", "corporate",
+}
+
 
 class SignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
@@ -40,10 +53,11 @@ class SignupRequest(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        clean = v.strip()
-        if not clean:
-            raise ValueError("Name cannot be empty")
-        return clean
+        if not v or not v.strip():
+            raise ValueError("Name cannot be blank")
+        if not re.match(r"^[a-zA-Z]+$", v):
+            raise ValueError("Name can only contain English letters with no spaces or special characters")
+        return v
 
     @field_validator("email")
     @classmethod
@@ -52,6 +66,56 @@ class SignupRequest(BaseModel):
         if "@" not in clean or "." not in clean.split("@")[-1]:
             raise ValueError("Invalid email format")
         return clean
+
+    @model_validator(mode="after")
+    def validate_password_rules(self) -> "SignupRequest":
+        password = self.password
+        if not password or not password.strip():
+            raise ValueError("Password cannot be blank")
+        if len(password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Z]", password):
+            raise ValueError("Password must include at least 1 uppercase letter")
+        if not re.search(r"[a-z]", password):
+            raise ValueError("Password must include at least 1 lowercase letter")
+        if not re.search(r"[0-9]", password):
+            raise ValueError("Password must include at least 1 number")
+        if not re.search(r"[!@#$%^&*]", password):
+            raise ValueError("Password must include at least 1 special character (! @ # $ % ^ & *)")
+
+        pw_lower = password.lower()
+
+        # Check username / name in password
+        name_clean = self.name.strip().lower() if self.name else ""
+        if name_clean and name_clean in pw_lower:
+            raise ValueError("Password must not contain your name")
+
+        # Check email in password
+        email_clean = self.email.strip().lower() if self.email else ""
+        if email_clean and email_clean in pw_lower:
+            raise ValueError("Password must not contain your email address")
+
+        email_prefix = email_clean.split("@")[0] if "@" in email_clean else ""
+        if len(email_prefix) >= 3 and email_prefix in pw_lower:
+            raise ValueError("Password must not contain your email username")
+
+        # Check common passwords
+        if pw_lower in COMMON_PASSWORDS or any(cp == pw_lower for cp in COMMON_PASSWORDS):
+            raise ValueError("Password must not use common passwords like Password123!")
+
+        # Check easily guessed information: birthday / year patterns (e.g. 19xx, 20xx)
+        if re.search(r"(19\d\d|20\d\d)", password):
+            raise ValueError("Password must not contain easily guessed information such as birthday or year")
+
+        # Check company name / workplace terms / department
+        if any(term in pw_lower for term in EASILY_GUESSED_TERMS):
+            raise ValueError("Password must not contain easily guessed information such as company or role names")
+
+        dept_clean = (self.department or "").strip().lower()
+        if len(dept_clean) >= 3 and dept_clean in pw_lower:
+            raise ValueError("Password must not contain easily guessed information such as department name")
+
+        return self
 
 
 

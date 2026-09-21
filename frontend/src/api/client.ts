@@ -64,7 +64,8 @@ export function login(username: string, password: string): Promise<LoginResponse
 }
 
 export function signup(
-  name: string,
+  firstName: string,
+  lastName: string,
   email: string,
   password: string,
   role: 'employee' = 'employee',
@@ -73,7 +74,8 @@ export function signup(
   return request<SignupResponse>('/auth/signup', {
     method: 'POST',
     body: JSON.stringify({
-      name,
+      first_name: firstName,
+      last_name: lastName,
       email,
       password,
       role,
@@ -84,6 +86,40 @@ export function signup(
 
 export function getMe(): Promise<{ user: import('./types').AuthUser }> {
   return request<{ user: import('./types').AuthUser }>('/auth/me');
+}
+
+export function provisionEngineer(
+  firstName: string,
+  lastName: string,
+  email: string,
+  password: string,
+  role: string = 'l1',
+  department: string = 'engineering',
+): Promise<{ status: string; user: import('./types').AuthUser }> {
+  return request<{ status: string; user: import('./types').AuthUser }>('/auth/provision-engineer', {
+    method: 'POST',
+    body: JSON.stringify({
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      password,
+      role,
+      department,
+    }),
+  });
+}
+
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ status: string; message: string }> {
+  return request<{ status: string; message: string }>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      current_password: currentPassword,
+      new_password: newPassword,
+    }),
+  });
 }
 
 export function createConversation(): Promise<ConversationResponse> {

@@ -250,7 +250,7 @@ def is_it_support_query(query: str, use_llm: bool = True, config: RunnableConfig
     trivia_patterns = [
         r"what colour\b", r"what color\b", r"who is\b", r"what is the weather\b",
         r"tell me a joke\b", r"zomato\b", r"swiggy\b", r"uber\b", r"order food\b",
-        r"my personal (phone|mobile)\b", r"my phone wifi\b", r"sex\b",
+        r"my personal (phone|mobile)\b", r"my phone wifi\b", r"rice cooker\b", r"sex\b",
     ]
     for pattern in trivia_patterns:
         if re.search(pattern, q_lower):
@@ -263,16 +263,40 @@ def is_it_support_query(query: str, use_llm: bool = True, config: RunnableConfig
             llm = get_chat_model()
             if llm:
                 sys_prompt = (
-                    "You are a triage gatekeeper for an Enterprise Corporate IT Helpdesk.\n"
-                    "Determine if the user's message is a legitimate corporate IT support request "
-                    "(such as troubleshooting corporate laptop/workstation, software, VPN, corporate email/network, "
-                    "SSO, passwords, enterprise hardware issues, or permissions/access).\n\n"
-                    "Answer OUT_OF_SCOPE for:\n"
-                    "- Trivia or nonsensical questions (e.g., 'what colour is the laptop')\n"
-                    "- Personal consumer devices (e.g., personal mobile phone, home router, personal tablet)\n"
-                    "- Non-IT requests (food delivery, weather, general knowledge, jokes, casual chat)\n\n"
-                    "Answer IN_SCOPE only for genuine enterprise IT issues and troubleshooting requests.\n"
-                    "Reply with ONLY 'IN_SCOPE' or 'OUT_OF_SCOPE'."
+                    # "You are a triage gatekeeper for an Enterprise Corporate IT Helpdesk.\n"
+                    # "Determine if the user's message is a legitimate corporate IT support request "
+                    # "(such as troubleshooting corporate laptop/workstation, software, VPN, corporate email/network, "
+                    # "SSO, passwords, enterprise hardware issues, or permissions/access).\n\n"
+                    # "Answer OUT_OF_SCOPE for:\n"
+                    # "- Trivia or nonsensical questions (e.g., 'what colour is the laptop')\n"
+                    # "- Non-IT requests (food delivery, weather, general knowledge, jokes, casual chat)\n\n"
+                    # "- Personal consumer devices or wearables (e.g., personal mobile phone, smart glasses/Ray-Ban Meta, home router, personal smartwatch, gaming consoles)\n"
+                    # "Answer IN_SCOPE only for genuine enterprise IT issues and troubleshooting requests.\n"
+                    # "Reply with ONLY 'IN_SCOPE' or 'OUT_OF_SCOPE'."
+                    """You are a strict triage gatekeeper for an Enterprise Corporate IT Helpdesk.\n"
+                    "Your sole task is to evaluate the user's message and determine whether it is a legitimate corporate IT support request.\n\n"
+                    "CLASSIFICATION RULES:\n"
+                    "1. Answer OUT_OF_SCOPE if the request is about:\n"
+                    "   - Personal devices, personal mobile phones/tablets, smart glasses (e.g. Ray-Ban Meta), smartwatches, home appliances (e.g. rice cooker), home routers, or personal gadgets.\n"
+                    "   - Hardware repairs or physical damage to non-company personal items.\n"
+                    "   - Non-IT requests (food delivery, weather, general knowledge, jokes, casual chat).\n"
+                    "   - Trivia, opinion, or nonsensical questions (e.g., 'what color is the laptop').\n\n"
+                    "2. Answer IN_SCOPE ONLY if the request is about:\n"
+                    "   - Corporate laptops/workstations, company VPN, corporate email (Outlook/Teams), SSO, MFA/passwords, network access, or corporate software installation.\n"
+                    "   - Installing or configuring company apps/VPN/email on a mobile device for work.\n\n"
+                    "FEW-SHOT EXAMPLES:\n"
+                    "User: 'My personal phone battery is draining fast' -> OUT_OF_SCOPE\n"
+                    "User: 'My Ray-Ban Meta glasses won't turn on' -> OUT_OF_SCOPE\n"
+                    "User: 'My rice cooker power button isn't working' -> OUT_OF_SCOPE\n"
+                    "User: 'What color is the office laptop?' -> OUT_OF_SCOPE\n"
+                    "User: 'Order pizza for lunch' -> OUT_OF_SCOPE\n"
+                    "User: 'How do I set up corporate email on my personal phone?' -> IN_SCOPE\n"
+                    "User: 'My password for corporate SSO is locked out' -> IN_SCOPE\n"
+                    "User: 'Outlook crashed on my work laptop' -> IN_SCOPE\n\n"
+                    "Reply with EXACTLY ONE WORD: either 'IN_SCOPE' or 'OUT_OF_SCOPE'."
+    """
+
+                    
                 )
                 res = llm.invoke([SystemMessage(content=sys_prompt), HumanMessage(content=q_clean)], config=config)
                 verdict = normalize_content(getattr(res, "content", res)).strip().upper()

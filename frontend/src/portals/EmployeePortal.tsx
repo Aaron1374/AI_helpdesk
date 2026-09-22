@@ -52,13 +52,25 @@ export const EmployeePortal: React.FC = () => {
       const list = await getConversations();
       setConversations(list);
 
-      const stored = sessionStorage.getItem('employee_active_conv');
-      if (stored === 'new') {
-        setActiveConversationId(null);
-      } else if (stored) {
-        const found = list.find((c) => c.id === stored);
-        if (found) {
-          setActiveConversationId(found.id);
+      // Only evaluate active conversation selection on initial component mount (!quiet)
+      if (!quiet) {
+        const stored = sessionStorage.getItem('employee_active_conv');
+        if (stored === 'new') {
+          setActiveConversationId(null);
+        } else if (stored) {
+          const found = list.find((c) => c.id === stored);
+          if (found) {
+            setActiveConversationId(found.id);
+          } else {
+            const openConv = list.find((c) => c.status !== 'CLOSED' && c.ticket_status !== 'CLOSED');
+            if (openConv) {
+              setActiveConversationId(openConv.id);
+              sessionStorage.setItem('employee_active_conv', openConv.id);
+            } else {
+              setActiveConversationId(null);
+              sessionStorage.setItem('employee_active_conv', 'new');
+            }
+          }
         } else {
           const openConv = list.find((c) => c.status !== 'CLOSED' && c.ticket_status !== 'CLOSED');
           if (openConv) {
@@ -68,15 +80,6 @@ export const EmployeePortal: React.FC = () => {
             setActiveConversationId(null);
             sessionStorage.setItem('employee_active_conv', 'new');
           }
-        }
-      } else {
-        const openConv = list.find((c) => c.status !== 'CLOSED' && c.ticket_status !== 'CLOSED');
-        if (openConv) {
-          setActiveConversationId(openConv.id);
-          sessionStorage.setItem('employee_active_conv', openConv.id);
-        } else {
-          setActiveConversationId(null);
-          sessionStorage.setItem('employee_active_conv', 'new');
         }
       }
     } catch {

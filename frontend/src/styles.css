@@ -2525,3 +2525,157 @@ h1 {
   color: #DC2626;
   font-weight: 500;
 }
+
+.provision-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .provision-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .provision-form-grid .neo-field[style*="gridColumn"],
+  .provision-form-grid div[style*="gridColumn"] {
+    grid-column: span 1 !important;
+  }
+}
+
+.name-fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .name-fields-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Password Requirements Hover Popover */
+.password-field-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.password-label-row label {
+  margin-bottom: 0 !important;
+}
+
+.password-info-trigger {
+  font-size: 0.76rem;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.04);
+  transition: all 150ms ease;
+}
+
+.password-info-trigger:hover {
+  color: var(--teal);
+  background: rgba(194, 94, 62, 0.08);
+}
+
+.password-rules-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  background: #FAF8F5;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14), 0 4px 10px rgba(0, 0, 0, 0.06);
+  animation: popoverFadeIn 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.password-rules-popover::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 24px;
+  width: 10px;
+  height: 10px;
+  background: #FAF8F5;
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  transform: rotate(45deg);
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Admin Provision Engineer Hero Banner */
+.admin-provision-hero {
+  background: linear-gradient(135deg, #FAF8F5 0%, #F4F1EB 100%);
+  border: 2px solid var(--coral);
+  border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(194, 94, 62, 0.12), 0 4px 12px rgba(0,0,0,0.04);
+  margin-bottom: 28px;
+  padding: 24px 28px;
+  animation: heroExpand 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-provision-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(216, 211, 200, 0.8);
+}
+
+.admin-provision-hero-title h2 {
+  margin: 0 0 4px 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.35rem;
+  color: #1C1917;
+}
+
+@keyframes heroExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.nav-button-primary {
+  background: var(--coral) !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(194, 94, 62, 0.3);
+}
+
+.nav-button-primary:hover {
+  background: var(--teal-dark) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(194, 94, 62, 0.4);
+}
+

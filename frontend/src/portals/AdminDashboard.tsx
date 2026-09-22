@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { getTickets, getConversationMessages, ApiError } from '../api/client';
+import { getTickets, getConversationMessages, provisionEngineer, ApiError } from '../api/client';
 import type { TicketItem, ChatMessageRecord } from '../api/types';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 
-export const AdminDashboard: React.FC = () => {
+export interface AdminDashboardProps {
+  isProvisionHeroOpen?: boolean;
+  onToggleProvisionHero?: () => void;
+}
+
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  isProvisionHeroOpen = false,
+  onToggleProvisionHero,
+}) => {
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,14 +25,27 @@ export const AdminDashboard: React.FC = () => {
   const ticketsPerPage = 10;
 
   const [inspectedTicket, setInspectedTicket] = useState<TicketItem | null>(null);
-
   const [inspectedMessages, setInspectedMessages] = useState<ChatMessageRecord[]>([]);
-
   const [isInspectLoading, setIsInspectLoading] = useState<boolean>(false);
 
   const [isAnalyticsExpanded, setIsAnalyticsExpanded] = useState<boolean>(true);
-
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
+
+  // Provision Engineer state
+  const [isInternalProvisionOpen, setIsInternalProvisionOpen] = useState<boolean>(false);
+  const [engFirstName, setEngFirstName] = useState<string>('');
+  const [engLastName, setEngLastName] = useState<string>('');
+  const [engEmail, setEngEmail] = useState<string>('');
+  const [engPassword, setEngPassword] = useState<string>('');
+  const [engRole, setEngRole] = useState<'l1' | 'l2' | 'support_lead'>('l1');
+  const [engDepartment, setEngDepartment] = useState<string>('engineering');
+  const [provisionError, setProvisionError] = useState<string>('');
+  const [provisionSuccess, setProvisionSuccess] = useState<string>('');
+  const [isProvisioning, setIsProvisioning] = useState<boolean>(false);
+  const [isPasswordRulesVisible, setIsPasswordRulesVisible] = useState<boolean>(false);
+
+  const isProvisionActive = isProvisionHeroOpen || isInternalProvisionOpen;
+  const toggleProvision = onToggleProvisionHero || (() => setIsInternalProvisionOpen(!isInternalProvisionOpen));
 
   useEffect(() => {
     let cancelled = false;
@@ -317,13 +338,245 @@ export const AdminDashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const isEngFirstNameValid = !engFirstName || /^[a-zA-Z]+$/.test(engFirstName.trim());
+  const isEngLastNameValid = !engLastName || /^[a-zA-Z]+$/.test(engLastName.trim());
+
+  const engPasswordRules = [
+    { id: 'length', label: 'Minimum 8 characters', met: engPassword.length >= 8 },
+    { id: 'uppercase', label: 'At least 1 uppercase letter (A-Z)', met: /[A-Z]/.test(engPassword) },
+    { id: 'lowercase', label: 'At least 1 lowercase letter (a-z)', met: /[a-z]/.test(engPassword) },
+    { id: 'number', label: 'At least 1 number (0-9)', met: /[0-9]/.test(engPassword) },
+    { id: 'special', label: 'At least 1 special character (! @ # $ % ^ & *)', met: /[!@#$%^&*]/.test(engPassword) },
+    {
+      id: 'userEmail',
+      label: 'Must not contain engineer name or email',
+      met: engPassword.length > 0 &&
+        !(engFirstName.trim() && engPassword.toLowerCase().includes(engFirstName.trim().toLowerCase())) &&
+        !(engLastName.trim() && engPassword.toLowerCase().includes(engLastName.trim().toLowerCase())) &&
+        !(engEmail.trim() && engPassword.toLowerCase().includes(engEmail.trim().toLowerCase())),
+    },
+    {
+      id: 'commonPw',
+      label: 'Must not use common passwords',
+      met: engPassword.length > 0 &&
+        !['password', 'password123', 'password123!', 'pass1234!', '12345678', 'qwertyuiop', 'admin123!'].some(
+          (cp) => engPassword.toLowerCase() === cp || engPassword.toLowerCase().includes(cp),
+        ),
+    },
+  ];
+
+  const handleProvisionEngineerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProvisionError('');
+    setProvisionSuccess('');
+
+    if (!engFirstName.trim() || !/^[a-zA-Z]+$/.test(engFirstName.trim())) {
+      setProvisionError('First Name must contain only English letters with no spaces or special characters.');
+      return;
+    }
+
+    if (!engLastName.trim() || !/^[a-zA-Z]+$/.test(engLastName.trim())) {
+      setProvisionError('Last Name must contain only English letters with no spaces or special characters.');
+      return;
+    }
+
+    const unmet = engPasswordRules.find((rule) => !rule.met);
+    if (unmet) {
+      setProvisionError(`Password rule failed: ${unmet.label}`);
+      return;
+    }
+
+    setIsProvisioning(true);
+
+    try {
+      const res = await provisionEngineer(engFirstName, engLastName, engEmail, engPassword, engRole, engDepartment);
+      setProvisionSuccess(`Successfully provisioned engineer account for ${res.user.name} (${res.user.email})!`);
+      setEngFirstName('');
+      setEngLastName('');
+      setEngEmail('');
+      setEngPassword('');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setProvisionError(err.message);
+      } else if (err instanceof Error) {
+        setProvisionError(err.message);
+      } else {
+        setProvisionError('Failed to provision engineer account.');
+      }
+    } finally {
+      setIsProvisioning(false);
+    }
+  };
+
   return (
     <div className="admin-dashboard">
-      <h1>Admin Dashboard</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div>
+          <h1 style={{ margin: 0 }}>Admin Dashboard</h1>
+          <p className="page-subtitle" style={{ margin: '6px 0 0 0' }}>
+            Enterprise analytics, conversation auditing, and system operations
+          </p>
+        </div>
+      </div>
 
-      <p className="page-subtitle">
-        Enterprise analytics, conversation auditing, and system operations
-      </p>
+      {/* PROVISION ENGINEER HERO BANNER */}
+      {isProvisionActive && (
+        <div className="admin-provision-hero" id="admin-provision-hero">
+          <div className="admin-provision-hero-header">
+            <div className="admin-provision-hero-title">
+              <h2>⚡ Provision Engineer Account</h2>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted)' }}>
+                Create verified IT support engineer credentials with department roles.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={toggleProvision}
+              style={{ fontSize: '0.85rem', padding: '5px 14px' }}
+            >
+              ✕ Close Hero
+            </button>
+          </div>
+
+          {provisionSuccess && (
+            <div
+              className="neo-error-banner"
+              style={{
+                background: '#dcfce7',
+                color: '#15803d',
+                borderColor: '#bbf7d0',
+                marginBottom: '14px',
+              }}
+            >
+              ✓ {provisionSuccess}
+            </div>
+          )}
+          {provisionError && (
+            <div className="neo-error-banner" style={{ marginBottom: '14px' }}>
+              {provisionError}
+            </div>
+          )}
+
+          <form onSubmit={handleProvisionEngineerSubmit} className="provision-form-grid">
+            <div className="name-fields-row" style={{ gridColumn: 'span 2' }}>
+              <div className="neo-field">
+                <label>First Name</label>
+                <input
+                  type="text"
+                  value={engFirstName}
+                  onChange={(e) => setEngFirstName(e.target.value)}
+                  placeholder="e.g. Alex"
+                  required
+                />
+                {!isEngFirstNameValid && (
+                  <span className="field-hint error-hint">
+                    English letters only (no spaces or numbers).
+                  </span>
+                )}
+              </div>
+
+              <div className="neo-field">
+                <label>Last Name</label>
+                <input
+                  type="text"
+                  value={engLastName}
+                  onChange={(e) => setEngLastName(e.target.value)}
+                  placeholder="e.g. Smith"
+                  required
+                />
+                {!isEngLastNameValid && (
+                  <span className="field-hint error-hint">
+                    English letters only (no spaces or numbers).
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="neo-field">
+              <label>Email Address</label>
+              <input
+                type="email"
+                value={engEmail}
+                onChange={(e) => setEngEmail(e.target.value)}
+                placeholder="engineer@company.com"
+                required
+              />
+            </div>
+
+            <div className="neo-field">
+              <label>Role</label>
+              <select value={engRole} onChange={(e) => setEngRole(e.target.value as any)}>
+                <option value="l1">L1 Support Engineer</option>
+                <option value="l2">L2 Support Engineer</option>
+                <option value="support_lead">Support Lead</option>
+              </select>
+            </div>
+
+            <div className="neo-field">
+              <label>Department</label>
+              <input
+                type="text"
+                value={engDepartment}
+                onChange={(e) => setEngDepartment(e.target.value)}
+                placeholder="engineering"
+                required
+              />
+            </div>
+
+            <div className="neo-field password-field-wrapper">
+              <div className="password-label-row">
+                <label>Initial Password</label>
+                <span
+                  className="password-info-trigger"
+                  onMouseEnter={() => setIsPasswordRulesVisible(true)}
+                  onMouseLeave={() => setIsPasswordRulesVisible(false)}
+                >
+                  ⓘ Requirements
+                </span>
+              </div>
+              <input
+                type="password"
+                value={engPassword}
+                onChange={(e) => setEngPassword(e.target.value)}
+                onFocus={() => setIsPasswordRulesVisible(true)}
+                onBlur={() => setIsPasswordRulesVisible(false)}
+                onMouseEnter={() => setIsPasswordRulesVisible(true)}
+                onMouseLeave={() => setIsPasswordRulesVisible(false)}
+                placeholder="Strong initial password"
+                required
+              />
+              {isPasswordRulesVisible && (
+                <div className="password-rules-popover">
+                  <div className="password-rules-header">Password Requirements</div>
+                  <ul className="password-rules-list">
+                    {engPasswordRules.map((rule) => {
+                      const isMet = engPassword.length > 0 ? rule.met : false;
+                      return (
+                        <li key={rule.id} className={`rule-item ${isMet ? 'is-satisfied' : ''}`}>
+                          <span className="rule-icon">{isMet ? '✓' : '•'}</span>
+                          <span className="rule-label">{rule.label}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div style={{ gridColumn: 'span 2', textAlign: 'right', marginTop: '10px' }}>
+              <button
+                type="submit"
+                className="neo-submit-btn"
+                  disabled={isProvisioning}
+                  style={{ width: 'auto', padding: '10px 24px' }}
+                >
+                  {isProvisioning ? 'Provisioning Account...' : 'Provision Engineer Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
       <div className="admin-analytics-panel">
         <div className="admin-analytics-header">

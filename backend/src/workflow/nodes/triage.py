@@ -58,6 +58,18 @@ def _prior_ai_turns(state: AgentState) -> int:
     return sum(1 for m in state.get("messages", []) or [] if isinstance(m, AIMessage))
 
 
+def _is_greeting_only_history(state: AgentState) -> bool:
+    """Check if all prior human messages in the conversation were only greetings."""
+    human_messages = [
+        m.content for m in (state.get("messages", []) or [])
+        if isinstance(m, HumanMessage) and getattr(m, "content", "")
+    ]
+    if not human_messages:
+        return True
+    return all(msg.strip().lower() in GREETING_ONLY or len(msg.strip()) < 4 for msg in human_messages)
+
+
+
 def _extract_search_query(state: AgentState, current_input: str) -> str:
     """
     Extract a focused search query for vector retrieval, avoiding conversational
@@ -176,9 +188,9 @@ def preprocess_node(state: AgentState, config: RunnableConfig = None):
                 ))],
             }
 
-    if prior_rounds == 0:
-        # Cold open — the only place the empty-greeting and full scope
-        # checks run.
+    if prior_rounds == 0 or _is_greeting_only_history(state):
+        # Cold open or first message following a greeting-only interaction —
+        # run greeting and full scope checks.
         if len(raw_text) < 4 or raw_text.lower() in GREETING_ONLY:
             return {
                 "needs_clarification": True,
